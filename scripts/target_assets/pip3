@@ -1,0 +1,4 @@
+#!/bin/sh
+# mini_python 的 pip 入口: ./pip3 list / ./pip3 install --no-index ...
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$HERE/python3" -m pip "$@"

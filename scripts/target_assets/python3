@@ -1,0 +1,13 @@
+#!/bin/sh
+# mini_python 入口脚本: 解压到任意目录即可使用, 无需安装
+#   ./python3 xxx.py
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+# 随包携带的共享库 (libssl/libffi/libsqlite3 等) 优先
+export LD_LIBRARY_PATH="$HERE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# 避免误加载 ~/.local 下与本环境不兼容的包
+export PYTHONNOUSERSITE=1
+# 服务器通常无图形界面, matplotlib 默认使用 Agg 后端 (可被外部环境变量覆盖)
+export MPLBACKEND="${MPLBACKEND:-Agg}"
+
+exec "$HERE/bin/python@PY_MM@" "$@"

@@ -1,0 +1,14 @@
+# 构建产物 (体积大, 不进仓库; 需要时 ./build.sh 重新生成)
+dist/
+*.tar.gz
+
+# 系统/编辑器垃圾
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
