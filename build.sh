@@ -98,7 +98,6 @@ docker build \
     --platform "$DOCKER_PLATFORM" \
     -f "$ROOT/docker/Dockerfile" \
     --build-arg BASE_IMAGE="$BASE_IMAGE" \
-    --build-arg OS_FAMILY="${OS_FAMILY:-debian}" \
     --build-arg APT_MIRROR="${APT_MIRROR:-}" \
     --build-arg PYTHON_VERSION="$PYVER" \
     --build-arg PY_PACKAGES="$PACKAGES" \

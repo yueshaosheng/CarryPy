@@ -66,7 +66,8 @@ tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # 目�
 ├── config/
 │   ├── ubuntu18_amd64.conf       # 平台配置: 基础镜像/架构/Python版本/默认包
 │   ├── ubuntu20_amd64.conf       # 平台扩展示例
-│   └── centos7_amd64.conf        # CentOS 7.9 (yum + vault 源 + 自编译 OpenSSL 1.1.1)
+│   ├── centos7_amd64.conf        # CentOS 7.9 (yum + vault 源 + 自编译 OpenSSL 1.1.1)
+│   └── rocky8_amd64.conf         # Rocky Linux 8 (yum, 官方源活跃, 系统 OpenSSL 1.1.1)
 ├── docker/Dockerfile             # 通用构建镜像 (参数全部 build-arg 注入)
 └── scripts/
     ├── build_python.sh           # [容器内] 编译 Python + 装预装包 + 收集共享库
@@ -184,9 +185,9 @@ DEFAULT_PACKAGES="numpy matplotlib pandas"
 
 然后 `./build.sh -p 你的配置名`。
 
-RHEL 系平台(CentOS / RockyLinux 等)需额外声明 `OS_FAMILY="rhel"`(走 yum 装依赖),
-参考已内置的 `config/centos7_amd64.conf`(构建时会自动切 vault 归档源并
-源码编译 OpenSSL 1.1.1, 见"注意事项")。
+包管理器家族**无需声明**: 构建时按基础镜像内的 `/etc/os-release` 自动判断
+(ubuntu/debian 走 apt, 其余走 yum)。RHEL 系平台参考已内置的 `config/centos7_amd64.conf`
+(CentOS 7 构建时会自动切 vault 归档源并源码编译 OpenSSL 1.1.1, 见"注意事项")。
 
 ## 五、清理 Docker 镜像
 
