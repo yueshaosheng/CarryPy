@@ -97,8 +97,23 @@ PIP_INDEX_URL=https://pypi.org/simple \
 ./build.sh
 ```
 
-产物: `dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz` (体积随预装包而定,
-默认 8 个包约 115 MB; 仅 numpy/matplotlib/pandas 时约 62 MB)
+产物: `dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz`
+
+### 产物体积参考
+
+预装包均为 `numpy matplotlib pandas seaborn openpyxl` (CentOS 6 为 numpy==1.26.4)：
+
+| 平台 | Python | 压缩包体积 |
+|---|---|---|
+| Ubuntu 18 AMD64 | 3.11.16 | 68 MB |
+| Ubuntu 20 AMD64 | 3.11.16 | 68 MB |
+| CentOS 7 AMD64 | 3.11.16 | 69 MB |
+| Rocky 8 AMD64 | 3.11.16 | 67 MB |
+| CentOS 6 AMD64 | 3.9.25 | 49 MB |
+
+增量包示例: `addon-ubuntu18_amd64-plotly` 约 16 MB
+
+> 体积随预装包数量变化; 仅 numpy/matplotlib/pandas 时约 50~55 MB
 
 ## 二、目标机部署 (离线)
 
