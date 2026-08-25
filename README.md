@@ -25,12 +25,12 @@ Python 运行环境, 并支持后续**增量添加新包**。
 #    其他平台则复制一份修改 (见"扩展新平台"章节)
 cat config/ubuntu18_amd64.conf
 
-# 2. 打包机: 构建全量包 (首次约 20~40 分钟, 国内网络建议加镜像变量, 见下文)
+# 2. 打包机: 构建全量包 (首次约 20~40 分钟, 默认已使用国内镜像源)
 ./build.sh -p ubuntu18_amd64
-# → 产物: dist/mini_python-ubuntu18_amd64-py3.10.14.tar.gz
+# → 产物: dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 
 # 3. 目标机: 拷过去解压即用 (无需 root / 无需联网 / 无需安装)
-tar xzf mini_python-ubuntu18_amd64-py3.10.14.tar.gz
+tar xzf mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 mini_python/selfcheck.sh              # 自检
 mini_python/python3 your_script.py    # 运行脚本
 
@@ -51,7 +51,7 @@ tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # 目�
          ├─ pip 安装预装包 (numpy/pandas/scipy/seaborn 等, 见 config/*.conf)
          ├─ 收集非 glibc 共享库 (libssl/libffi/libsqlite3...) 随包携带
          ├─ 体积裁剪 (测试套件/头文件/静态库/IDLE/tkinter, strip 符号)
-         └─ 打包 → dist/mini_python-ubuntu18_amd64-py3.10.14.tar.gz
+         └─ 打包 → dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 ```
 
 - 构建全程在**与目标机一致的容器环境**中进行, 保证 glibc / ABI 兼容
@@ -84,20 +84,20 @@ tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # 目�
 ## 一、全量打包
 
 ```bash
-# 默认: ubuntu18_amd64 + Python 3.10.14 + 配置文件中的 DEFAULT_PACKAGES
+# 默认: ubuntu18_amd64 + Python 3.11 (自动解析最新 patch) + 配置文件中的 DEFAULT_PACKAGES
 ./build.sh
 
 # 自定义
-./build.sh -p ubuntu18_amd64 --python 3.10.14 --packages "numpy matplotlib pandas"
+./build.sh -p ubuntu18_amd64 --python 3.11 --packages "numpy matplotlib pandas"
 
-# 国内网络加速 (apt 镜像 + Python 源码镜像 + pip 镜像)
-APT_MIRROR=mirrors.aliyun.com \
-PYTHON_MIRROR=https://mirrors.huaweicloud.com/python \
-PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+# 海外环境可覆盖为官方源
+APT_MIRROR="" \
+PYTHON_MIRROR=https://www.python.org/ftp/python \
+PIP_INDEX_URL=https://pypi.org/simple \
 ./build.sh
 ```
 
-产物: `dist/mini_python-ubuntu18_amd64-py3.10.14.tar.gz` (体积随预装包而定,
+产物: `dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz` (体积随预装包而定,
 默认 8 个包约 115 MB; 仅 numpy/matplotlib/pandas 时约 62 MB)
 
 ## 二、目标机部署 (离线)
@@ -105,7 +105,7 @@ PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
 把 tar.gz 拷到目标服务器(U 盘 / scp 均可):
 
 ```bash
-tar xzf mini_python-ubuntu18_amd64-py3.10.14.tar.gz
+tar xzf mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 cd mini_python
 
 ./selfcheck.sh          # 自检: 解释器/标准库/已装包
@@ -179,7 +179,7 @@ GUI 类包的 wheel 依赖大量系统图形库 (glib/GL/X11/fontconfig 等), �
 ```bash
 BASE_IMAGE="debian:11"
 DOCKER_PLATFORM="linux/arm64"
-PYTHON_VERSION="3.10.14"
+PYTHON_VERSION="3.11"
 DEFAULT_PACKAGES="numpy matplotlib pandas"
 ```
 
@@ -200,7 +200,7 @@ DEFAULT_PACKAGES="numpy matplotlib pandas"
 
 ```bash
 docker images                                      # 查看现有镜像
-docker rmi mini-py-pack/ubuntu18_amd64:py3.10.14   # 删指定构建镜像
+docker rmi mini-py-pack/ubuntu18_amd64:py3.11   # 删指定构建镜像
 docker image prune                                 # 清理构建失败产生的悬空镜像
 docker builder prune                               # 清理 build 缓存
 docker system df                                   # 查看 Docker 磁盘占用明细

@@ -6,15 +6,13 @@
 # 示例:
 #   ./build_addon.sh scikit-learn                        # 默认平台 ubuntu18_amd64
 #   ./build_addon.sh -p ubuntu18_amd64 scikit-learn "xgboost==2.0.3"
-#   PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple ./build_addon.sh scikit-learn
+#   PIP_INDEX_URL=https://pypi.org/simple ./build_addon.sh scikit-learn
+#
+# 注: 主逻辑封装在 main() 中, bash 会一次性读入整个函数体再执行,
+#     构建期间即使脚本文件被修改也不影响正在运行的实例。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-
-PLATFORM="ubuntu18_amd64"
-PYVER_OVERRIDE=""
-SYSTEM_PKGS=""
-PKG_ARGS=()
 
 usage() {
     cat <<'EOF'
@@ -31,9 +29,17 @@ usage() {
   包名支持版本约束, 如 "scikit-learn==1.3.2" (带约束时请加引号)。
 
 环境变量:
-  PIP_INDEX_URL   pip 源, 国内可用 https://pypi.tuna.tsinghua.edu.cn/simple
+  PIP_INDEX_URL   pip 源 (默认 https://pypi.tuna.tsinghua.edu.cn/simple)
 EOF
 }
+
+# ---------------- 主逻辑 (封装在函数中, 一次性读入内存) ----------------
+main() {
+
+PLATFORM="ubuntu18_amd64"
+PYVER_OVERRIDE=""
+SYSTEM_PKGS=""
+PKG_ARGS=()
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -74,9 +80,13 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
     exit 1
 fi
 
-# 增量包命名: addon-<平台>-<首个包名>-<日期>
-FIRST_PKG="$(printf '%s' "${PKG_ARGS[0]}" | sed -e 's/[=<>!~].*//' -e 's/[^A-Za-z0-9._-]/-/g')"
-ADDON_NAME="addon-${PLATFORM}-${FIRST_PKG}-$(date +%Y%m%d)"
+# 增量包命名: addon-<平台>-<包1+包2+...>-<日期>
+PKG_TAG=""
+for p in "${PKG_ARGS[@]}"; do
+    clean="$(printf '%s' "$p" | sed -e 's/[=<>!~].*//' -e 's/[^A-Za-z0-9._-]/-/g')"
+    PKG_TAG="${PKG_TAG:+${PKG_TAG}+}${clean}"
+done
+ADDON_NAME="addon-${PLATFORM}-${PKG_TAG}-$(date +%Y%m%d)"
 
 echo "================ 增量包参数 ================"
 echo "  目标平台   : $PLATFORM ($DOCKER_PLATFORM)"
@@ -106,3 +116,7 @@ echo ""
 echo "部署到目标机:"
 echo "  tar xzf ${ADDON_NAME}.tar.gz"
 echo "  ./${ADDON_NAME}/install_addon.sh /path/to/mini_python"
+
+} # end main
+
+main "$@"

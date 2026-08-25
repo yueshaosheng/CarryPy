@@ -12,13 +12,22 @@ set -euo pipefail
 PYTHON_VERSION="${1:?缺少 Python 版本参数}"
 PY_PACKAGES="${2:-}"
 ENABLE_OPTIMIZATIONS="${3:-0}"
-PYTHON_MIRROR="${4:-https://www.python.org/ftp/python}"
+PYTHON_MIRROR="${4:-https://mirrors.huaweicloud.com/python}"
 
 PREFIX="${PREFIX:-/opt/mini_python}"
 PY_MM="$(echo "$PYTHON_VERSION" | cut -d. -f1,2)"   # 如 3.10
 PY_BIN="python${PY_MM}"
 
 log() { echo ""; echo "==> $*"; }
+
+# CentOS 6 等: 若安装了 SCL devtoolset, 激活新版 GCC (Dockerfile 中已安装)
+[ -f /opt/rh/devtoolset-9/enable ] && source /opt/rh/devtoolset-9/enable
+
+# ---------------- 检查是否已有预编译 Python (python-build-standalone 等) ----------------
+if [ -x "$PREFIX/bin/$PY_BIN" ]; then
+    log "检测到预编译 Python, 跳过源码编译"
+    "$PREFIX/bin/$PY_BIN" -V
+else
 
 # ---------------- 1. 源码编译 Python ----------------
 log "下载 Python-${PYTHON_VERSION} 源码 (${PYTHON_MIRROR})"
@@ -36,6 +45,12 @@ fi
 if [ -d /opt/openssl11 ]; then
     CONF_FLAGS+=(--with-openssl=/opt/openssl11 --with-openssl-rpath=auto)
 fi
+# CentOS 6 等: 系统 sqlite3 版本过低, 镜像构建阶段已源码编译到 /opt/sqlite3
+if [ -d /opt/sqlite3 ]; then
+    export CPPFLAGS="${CPPFLAGS:-} -I/opt/sqlite3/include"
+    export LDFLAGS="${LDFLAGS:-} -L/opt/sqlite3/lib"
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}/opt/sqlite3/lib"
+fi
 
 log "configure ${CONF_FLAGS[*]}"
 ./configure "${CONF_FLAGS[@]}" > /tmp/configure.log 2>&1 \
@@ -48,6 +63,12 @@ make install > /tmp/install.log 2>&1 \
     || { tail -n 50 /tmp/install.log; exit 1; }
 
 "$PREFIX/bin/$PY_BIN" -V
+
+# 清理源码, 减小镜像层体积 (仅源码编译时需要)
+cd /
+rm -rf /tmp/src
+
+fi  # end if/else 预编译 Python 检查
 
 # ---------------- 2. 安装预置包 ----------------
 log "升级 pip / setuptools / wheel"
@@ -82,6 +103,4 @@ done | sort -u | while read -r lib; do
     fi
 done
 
-# 清理源码, 减小镜像层体积
-rm -rf /tmp/src
 log "编译层完成: $PREFIX"

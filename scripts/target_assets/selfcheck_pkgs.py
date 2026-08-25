@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # [目标机执行] 每包功能冒烟测试 (不只 import, 真正跑一遍核心功能):
-#   用法: python3 selfcheck_pkgs.py            # 测所有已安装的已知包
-#         python3 selfcheck_pkgs.py 包1 包2    # 只测指定包 (pypi 名, 可带版本约束)
+#   用法: python3 selfcheck_pkgs.py                       # 测所有已安装的已知包
+#         python3 selfcheck_pkgs.py 包1 包2              # 只测指定包 (pypi 名, 可带版本约束)
+#         python3 selfcheck_pkgs.py --output-dir DIR      # 测试产物保存到 DIR
+#         python3 selfcheck_pkgs.py --output-dir DIR 包1  # 组合使用
 #   - 未安装的包标记 SKIP (无参模式) / FAIL (点名模式, 点名了就必须在)
 #   - 没有内置测试用例的包回退为 import 验证
 #   - 有 FAIL 时退出码非 0
@@ -102,6 +104,23 @@ def test_pillow(tmp):
     assert back.size == (64, 64), "图像读回尺寸不对"
 
 
+def test_openpyxl(tmp):
+    from openpyxl import Workbook, load_workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["name", "value"])
+    ws.append(["alpha", 1])
+    ws.append(["beta", 2])
+    out = os.path.join(tmp, "test.xlsx")
+    wb.save(out)
+    wb2 = load_workbook(out, read_only=True)
+    ws2 = wb2.active
+    rows = list(ws2.iter_rows(values_only=True))
+    wb2.close()
+    assert rows[0] == ("name", "value"), f"表头不对: {rows[0]}"
+    assert rows[1] == ("alpha", 1), f"数据不对: {rows[1]}"
+
+
 def test_sklearn(tmp):
     import numpy as np
     from sklearn.linear_model import LogisticRegression
@@ -136,6 +155,7 @@ TESTS = {
     "seaborn": ("seaborn", test_seaborn),
     "plotly": ("plotly", test_plotly),
     "pillow": ("PIL", test_pillow),
+    "openpyxl": ("openpyxl", test_openpyxl),
     "scikit-learn": ("sklearn", test_sklearn),
     "pyside2": ("PySide2", lambda tmp: _test_qt("PySide2", tmp)),
     "pyside6": ("PySide6", lambda tmp: _test_qt("PySide6", tmp)),
@@ -150,26 +170,44 @@ def norm(pkg):
 
 
 def main(argv):
-    explicit = [norm(a) for a in argv if norm(a)]
+    # 解析 --output-dir 参数
+    output_dir = None
+    raw_args = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--output-dir" and i + 1 < len(argv):
+            output_dir = argv[i + 1]
+            i += 2
+        else:
+            raw_args.append(argv[i])
+            i += 1
+
+    explicit = [norm(a) for a in raw_args if norm(a)]
     names = explicit or list(TESTS)
 
-    n_pass = n_fail = n_skip = 0
+    # 有 output_dir 时测试产物保存到那里, 否则用临时目录 (测完自动清理)
+    use_tmp = output_dir is None
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    n_pass = n_fail = 0
     for name in names:
         modname = TESTS[name][0] if name in TESTS else ALIAS.get(name, name.replace("-", "_"))
         if importlib.util.find_spec(modname) is None:
             if explicit:                       # 点名模式: 点名了就必须已安装
                 print(f"  [FAIL] {name}: 未安装 (找不到模块 {modname})")
                 n_fail += 1
-            else:
-                print(f"  [SKIP] {name}: 未安装")
-                n_skip += 1
+            # 默认模式: 跳过未安装的包, 不显示
             continue
         try:
             mod = importlib.import_module(modname)
             ver = getattr(mod, "__version__", "?")
             if name in TESTS:
-                with tempfile.TemporaryDirectory() as tmp:
-                    TESTS[name][1](tmp)
+                if use_tmp:
+                    with tempfile.TemporaryDirectory() as tmp:
+                        TESTS[name][1](tmp)
+                else:
+                    TESTS[name][1](output_dir)
                 print(f"  [PASS] {name} {ver}: 功能测试通过")
             else:                              # 无内置用例: 回退 import 验证
                 print(f"  [PASS] {name} {ver}: import 验证通过 (无内置功能测试)")
@@ -178,7 +216,9 @@ def main(argv):
             print(f"  [FAIL] {name}: {type(e).__name__}: {e}")
             n_fail += 1
 
-    print(f"  ---- 冒烟测试汇总: {n_pass} PASS, {n_fail} FAIL, {n_skip} SKIP ----")
+    print(f"  ---- 冒烟测试汇总: {n_pass} PASS, {n_fail} FAIL ----")
+    if output_dir:
+        print(f"  测试产物已保存到: {output_dir}")
     return 1 if n_fail else 0
 
 
