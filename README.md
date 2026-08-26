@@ -1,156 +1,136 @@
-# mini_py_pack — 跨平台最小化 Python 环境打包工具
+English | [中文](README_zh.md)
 
-基于 Docker 为指定目标平台(如 Ubuntu 18.04 AMD64)构建**最小体积、可离线部署、免安装**的
-Python 运行环境, 并支持后续**增量添加新包**。
+# mini_py_pack — Cross-platform Minimal Python Environment Packager
 
-## 目录
+Uses Docker to build a **minimal-size, offline-deployable, install-free** Python runtime
+for a given target platform (e.g. Ubuntu 18.04 AMD64), with support for **incrementally
+adding new packages** afterwards.
 
-- [快速开始](#快速开始)
-- [工作原理](#工作原理)
-- [目录结构](#目录结构)
-- [支持平台与环境说明](#支持平台与环境说明)
-- [一、全量打包](#一全量打包)
-- [二、目标机部署 (离线)](#二目标机部署-离线)
-- [三、增量包 (后期添加新包)](#三增量包-后期添加新包)
-- [四、扩展新平台](#四扩展新平台)
-- [五、清理 Docker 镜像](#五清理-docker-镜像)
-- [六、构建加速](#六构建加速)
-- [注意事项](#注意事项)
+## Table of Contents
 
-## 快速开始
+- [Quick Start](#quick-start)
+- [How It Works](#how-it-works)
+- [Directory Layout](#directory-layout)
+- [1. Full Build](#1-full-build)
+- [2. Deployment on the Target Machine (Offline)](#2-deployment-on-the-target-machine-offline)
+- [3. Addon Packages (Adding New Packages Later)](#3-addon-packages-adding-new-packages-later)
+- [4. Adding a New Platform](#4-adding-a-new-platform)
+- [5. Cleaning Up Docker Images](#5-cleaning-up-docker-images)
+- [6. Speeding Up Builds](#6-speeding-up-builds)
+- [Notes](#notes)
 
-前提: 打包机已安装并启动 Docker(macOS / Linux 均可, 无需与目标平台同架构)。
+## Quick Start
+
+Prerequisite: Docker is installed and running on the build machine (macOS / Linux both work;
+it does NOT need to share the target platform's architecture).
 
 ```bash
-# 1. 打包机: 确认平台配置 (目标平台/Python 版本/预装包)
-#    默认已内置 config/ubuntu18_amd64.conf, 与之一致可跳过此步;
-#    其他平台则复制一份修改 (见"扩展新平台"章节)
+# 1. Build machine: check the platform config (target platform / Python version / preset packages)
+#    config/ubuntu18_amd64.conf is built in; skip this step if it matches your target.
+#    For other platforms, copy one and edit it (see "Adding a New Platform")
 cat config/ubuntu18_amd64.conf
 
-# 2. 打包机: 构建全量包 (首次约 20~40 分钟, 默认已使用国内镜像源)
+# 2. Build machine: full build (~20-40 min first time; China mirrors are used by default)
 ./build.sh -p ubuntu18_amd64
-# → 产物: dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz
+# → artifact: dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 
-# 3. 目标机: 拷过去解压即用 (无需 root / 无需联网 / 无需安装)
+# 3. Target machine: copy over, extract and run (no root / no network / no installation)
 tar xzf mini_python-ubuntu18_amd64-py3.11.9.tar.gz
-mini_python/selfcheck.sh              # 自检
-mini_python/python3 your_script.py    # 运行脚本
+mini_python/selfcheck.sh              # self-check
+mini_python/python3 your_script.py    # run your script
 
-# 4. 后期加新包 (可选): 打包机构建增量包 → 目标机离线安装
-./build_addon.sh scikit-learn         # 打包机, 复用第 2 步的构建镜像
-tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # 目标机
+# 4. Add packages later (optional): build an addon on the build machine → install offline on target
+./build_addon.sh scikit-learn         # build machine, reuses the image from step 2
+tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # target machine
 ```
 
-各步骤的完整选项和说明见下面对应章节。
+Full options and details for each step are in the corresponding sections below.
 
-## 工作原理
+## How It Works
 
 ```
-宿主机(任意平台, 需 Docker)
+Build host (any platform, Docker required)
  └─ build.sh
      └─ docker build --platform linux/amd64 (ubuntu:18.04)
-         ├─ 源码编译 Python 3.10  →  /opt/mini_python
-         ├─ pip 安装预装包 (numpy/pandas/scipy/seaborn 等, 见 config/*.conf)
-         ├─ 收集非 glibc 共享库 (libssl/libffi/libsqlite3...) 随包携带
-         ├─ 体积裁剪 (测试套件/头文件/静态库/IDLE/tkinter, strip 符号)
-         └─ 打包 → dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz
+         ├─ Compile Python 3.10 from source  →  /opt/mini_python
+         ├─ pip install preset packages (numpy/pandas/scipy/seaborn etc., see config/*.conf)
+         ├─ Collect non-glibc shared libs (libssl/libffi/libsqlite3...) shipped with the pack
+         ├─ Trim size (test suites/headers/static libs/IDLE/tkinter, strip symbols)
+         └─ Package → dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 ```
 
-- 构建全程在**与目标机一致的容器环境**中进行, 保证 glibc / ABI 兼容
-- CPython 通过"可执行文件相对路径"定位标准库, 解压到任意目录都能跑
-- 构建镜像会保留(`mini-py-pack/<平台>:py<版本>`), 增量包直接复用它构建
+- The entire build runs **inside a container matching the target machine**, guaranteeing glibc / ABI compatibility
+- CPython locates its standard library via paths relative to the executable, so it works when extracted to any directory
+- The build image is kept (`mini-py-pack/<platform>:py<version>`) and reused directly for addon packages
 
-### 增量包 (build_addon.sh)
-
-```
-宿主机(任意平台, 需 Docker)
- └─ build_addon.sh <包1> [包2 ...]
-     └─ docker run (复用 build.sh 保留的构建镜像, 缺失时自动空包补建)
-         ├─ pip wheel 下载/编译新包及其全部依赖 (仅 sdist 的包才现场编译)
-         ├─ 临时安装后 ldd 收集环境外共享库 (glibc 家族除外)
-         └─ 打包 wheels + 共享库 + 离线安装脚本 → dist/addon-*.tar.gz
-```
-
-- "编译工具链"(gcc/make/开发库)只存在于构建镜像中, **不进入产物**; 产物只有裁剪后的 Python 环境
-- 空包基础包(`./build.sh --packages ""`) = 解释器 + **完整标准库**(仅裁减了测试套件/IDLE/头文件等),
-  不含第三方包; 配合增量包按需叠加, 总体积 ≈ 全量包
-
-## 目录结构
+### Addon Packages (build_addon.sh)
 
 ```
-├── build.sh                      # 全量打包入口 (宿主机)
-├── build_addon.sh                # 增量包打包入口 (宿主机)
+Build host (any platform, Docker required)
+ └─ build_addon.sh <pkg1> [pkg2 ...]
+     └─ docker run (reuses the build image kept by build.sh; auto-rebuilds it with an empty package list if missing)
+         ├─ pip wheel downloads/compiles the new packages and all their dependencies (only sdist-only packages are compiled)
+         ├─ After a temporary install, ldd collects shared libraries outside the environment (glibc family excluded)
+         └─ Package wheels + shared libs + offline install script → dist/addon-*.tar.gz
+```
+
+- The "compile toolchain" (gcc/make/dev libraries) lives only in the build image and **never enters the artifact**; the artifact contains only the trimmed Python environment
+- An empty base pack (`./build.sh --packages ""`) = interpreter + **full standard library** (only test suites/IDLE/headers etc. are removed),
+  with no third-party packages; stack addons on top as needed — combined size ≈ full pack
+
+## Directory Layout
+
+```
+├── build.sh                      # Full-build entry (host side)
+├── build_addon.sh                # Addon-build entry (host side)
 ├── config/
-│   ├── ubuntu18_amd64.conf       # Ubuntu 18.04 (EOL, 自动切 old-releases 源)
+│   ├── ubuntu18_amd64.conf       # Ubuntu 18.04 (EOL, auto-switches to old-releases sources)
 │   ├── ubuntu20_amd64.conf       # Ubuntu 20.04 LTS
 │   ├── ubuntu22_amd64.conf       # Ubuntu 22.04 LTS
 │   ├── ubuntu24_amd64.conf       # Ubuntu 24.04 LTS
-│   ├── debian12_amd64.conf       # Debian 12 (DEB822 格式源)
-│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + 自编译 OpenSSL + sqlite3)
-│   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault 源 + 自编译 OpenSSL)
+│   ├── debian12_amd64.conf       # Debian 12 (DEB822-format sources)
+│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + self-built OpenSSL + sqlite3)
+│   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault sources + self-built OpenSSL)
 │   ├── rocky8_amd64.conf         # Rocky Linux 8
 │   └── rocky9_amd64.conf         # Rocky Linux 9
-├── docker/Dockerfile             # 通用构建镜像 (参数全部 build-arg 注入)
+├── docker/Dockerfile             # Generic build image (all parameters injected via build-args)
 └── scripts/
-    ├── build_python.sh           # [容器内] 编译 Python + 装预装包 + 收集共享库
-    ├── package_python.sh         # [容器内] 裁剪 + 自检 + 打包 (独立 Docker 层)
-    ├── make_addon.sh             # [容器内] 构建增量包 wheels + 收集系统库
-    └── target_assets/            # 打进产物、在目标机上运行的脚本
-        ├── python3               # 入口包装脚本 (设置 LD_LIBRARY_PATH 等)
-        ├── pip3                  # pip 入口
-        ├── selfcheck.sh          # 环境自检
-        ├── selfcheck_pkgs.py     # 每个包的功能冒烟测试 (全量包/增量包共用)
-        └── install_addon.sh      # 增量包离线安装脚本 (装完自动自检)
+    ├── build_python.sh           # [in container] compile Python + install preset packages + collect shared libs
+    ├── package_python.sh         # [in container] trim + selfcheck + package (separate Docker layer)
+    ├── make_addon.sh             # [in container] build addon wheels + collect system libraries
+    └── target_assets/            # scripts shipped inside the artifact, run on the target machine
+        ├── python3               # entry wrapper script (sets LD_LIBRARY_PATH etc.)
+        ├── pip3                  # pip entry
+        ├── selfcheck.sh          # environment self-check
+        ├── selfcheck_pkgs.py     # per-package functional smoke tests (shared by full packs and addons)
+        └── install_addon.sh      # offline addon installer (auto self-check after install)
 ```
 
-## 支持平台与环境说明
-
-| 平台 | 状态 | glibc | GCC | OpenSSL | 特殊处理 |
-|---|---|---|---|---|---|
-| **Ubuntu 24.04** | 活跃 (ESM 至 2036) | 2.39 | 13.2 | 3.0.13 | 无, 系统库直接可用 |
-| **Ubuntu 22.04** | 活跃 (ESM 至 2034) | 2.35 | 11.4 | 3.0.2 | 无, 系统库直接可用 |
-| **Ubuntu 20.04** | 活跃 (ESM 至 2030) | 2.31 | 9.4 | 1.1.1f | 无, 系统库直接可用 |
-| **Ubuntu 18.04** | EOL (2023) | 2.27 | 7.5 | 1.1.1 | apt 源自动切换到 `old-releases.ubuntu.com` |
-| **Debian 12** | 活跃 (至 2028) | 2.36 | 12.2 | 3.0.11 | 无, 源文件自动识别 (DEB822 格式) |
-| **Rocky Linux 9** | 活跃 (至 2032) | 2.34 | 11.4 | 3.0.7 | 无, 官方源活跃直接可用 |
-| **Rocky Linux 8** | 活跃 (至 2029) | 2.28 | 8.5 | 1.1.1k | 无, 官方源活跃直接可用 |
-| **CentOS 7.9** | EOL (2024) | 2.17 | 4.8 | 1.0.2k | ① yum 源切 `vault.centos.org` 归档<br>② 源码编译 OpenSSL 1.1.1w<br>③ SCL devtoolset-9 (GCC 9) |
-| **CentOS 6.10** | EOL (2020) | 2.12 | 4.4 | 1.0.1e | ① yum 源切 `vault.centos.org` 归档<br>② SCL devtoolset-9 (GCC 9.1)<br>③ 源码编译 OpenSSL 1.1.1w + sqlite3 3.46<br>④ numpy 固定 ==1.26.4 (GCC 9.1 < 9.3) |
-
-> 以上处理**全部自动完成**, 无需手动干预。构建产物自带所需共享库 (`libssl.so.1.1` 等),
-> 目标机无需安装任何额外依赖。
-
-### 老平台限制
-
-- **CentOS 6 (glibc 2.12)**: Python 最高支持 3.9; numpy 2.x 要求 GCC ≥ 9.3 而 devtoolset-9 仅提供 9.1.1, 因此固定 `numpy==1.26.4`; scikit-learn 几乎无兼容 wheel, 默认不装
-- **CentOS 7 (glibc 2.17)**: 系统 OpenSSL 1.0.2 不满足 Python 3.10+ 要求, 自动源码编译 OpenSSL 1.1.1; scikit-learn 可能无兼容 wheel, 默认不装
-- **Ubuntu 18.04 (glibc 2.27)**: Qt6 (PySide6) 要求 glibc ≥ 2.28, 无法运行; 如需 GUI 请用 Qt5 (PySide2)
-
-## 一、全量打包
+## 1. Full Build
 
 ```bash
-# 默认: ubuntu18_amd64 + Python 3.11 (自动解析最新 patch) + 配置文件中的 DEFAULT_PACKAGES
+# Default: ubuntu18_amd64 + Python 3.11 (latest patch auto-resolved) + DEFAULT_PACKAGES from the config
 ./build.sh
 
-# 自定义
+# Customized
 ./build.sh -p ubuntu18_amd64 --python 3.11 --packages "numpy matplotlib pandas"
 
-# 海外环境可覆盖为官方源
+# Outside China, override to official sources
 APT_MIRROR="" \
 PYTHON_MIRROR=https://www.python.org/ftp/python \
 PIP_INDEX_URL=https://pypi.org/simple \
 ./build.sh
 ```
 
-产物: `dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz`
+Artifact: `dist/mini_python-ubuntu18_amd64-py3.11.9.tar.gz`
 
-### 产物体积参考
+### Artifact Size Reference
 
-实测于 2026-08-26。
+Measured on 2026-08-26.
 
-**空包基础包**(`--packages ""`, 解释器 + 完整标准库, 不含第三方包):
+**Empty base packs** (`--packages ""`, interpreter + full standard library, no third-party packages):
 
-| 平台 | Python | 体积 |
+| Platform | Python | Size |
 |---|---|---|
 | CentOS 6 AMD64 | 3.9.25 | 11 MB |
 | CentOS 7 AMD64 | 3.11.16 | 11 MB |
@@ -160,92 +140,94 @@ PIP_INDEX_URL=https://pypi.org/simple \
 | Ubuntu 22 / 24 AMD64 | 3.11.16 | 13 MB |
 | Debian 12 AMD64 | 3.11.16 | 13 MB |
 
-**addon 增量包**(`numpy matplotlib pandas seaborn openpyxl`, 15~17 个 wheel):
+**Addon packages** (`numpy matplotlib pandas seaborn openpyxl`, 15-17 wheels):
 
-| 平台 | 体积 | 备注 |
+| Platform | Size | Notes |
 |---|---|---|
-| CentOS 6 AMD64 | 36 MB | numpy==1.26.4 源码编译 |
-| CentOS 7 AMD64 | 53 MB | 17 个 wheel (多 pytz/tzdata) |
-| 其余 7 个平台 | 51 MB | 全部预编译 wheel |
+| CentOS 6 AMD64 | 36 MB | numpy==1.26.4 compiled from source |
+| CentOS 7 AMD64 | 53 MB | 17 wheels (extra pytz/tzdata) |
+| The other 7 platforms | 51 MB | all prebuilt wheels |
 
-> 基础包 + addon ≈ 全量包体积 (如 ubuntu22: 13+51=64 MB, 全量包 69 MB)
+> Base pack + addon ≈ full-pack size (e.g. ubuntu22: 13+51=64 MB vs 69 MB full pack)
 
-**全量包** (预装包均为 `numpy matplotlib pandas seaborn openpyxl`,
-CentOS 6 为 numpy==1.26.4, 对照参考)：
+**Full packs** (preset packages `numpy matplotlib pandas seaborn openpyxl`,
+numpy==1.26.4 on CentOS 6; for comparison):
 
-| 平台 | Python | 压缩包体积 |
+| Platform | Python | Archive Size |
 |---|---|---|
-| Ubuntu 18 / 20 / 22 AMD64 | 3.11.16 | 68~69 MB |
+| Ubuntu 18 / 20 / 22 AMD64 | 3.11.16 | 68-69 MB |
 | CentOS 7 AMD64 | 3.11.16 | 69 MB |
-| Rocky 8 / 9 AMD64 | 3.11.16 | 67~69 MB |
+| Rocky 8 / 9 AMD64 | 3.11.16 | 67-69 MB |
 | Debian 12 AMD64 | 3.11.16 | 69 MB |
 | CentOS 6 AMD64 | 3.9.25 | 49 MB |
 
-增量包示例: `addon-ubuntu18_amd64-plotly` 约 16 MB
+Addon example: `addon-ubuntu18_amd64-plotly` ≈ 16 MB
 
-> 体积随预装包数量变化; 仅 numpy/matplotlib/pandas 时约 50~55 MB
+> Sizes vary with the number of preset packages; numpy/matplotlib/pandas only is about 50-55 MB
 
-### 构建时间参考
+### Build Time Reference
 
-实测于 Apple Silicon (macOS 通过 QEMU/Rosetta 模拟构建 linux/amd64), 2026-08-26:
+Measured on Apple Silicon (macOS building linux/amd64 via QEMU/Rosetta emulation), 2026-08-26:
 
-| 场景 | Apple Silicon (模拟构建) | 原生 amd64 Linux |
+| Scenario | Apple Silicon (emulated) | Native amd64 Linux |
 |---|---|---|
-| 全量包（带默认包） | 20~40 分钟 | 5~10 分钟 |
-| 空包基础包 | 5~10 分钟 | 2~4 分钟 |
-| addon（包有二进制 wheel） | 3~5 分钟 | 1~2 分钟 |
-| addon（需源码编译, 如 centos6 numpy） | 10~15 分钟 | 3~5 分钟 |
+| Full pack (with default packages) | 20-40 min | 5-10 min |
+| Empty base pack | 5-10 min | 2-4 min |
+| Addon (packages have binary wheels) | 3-5 min | 1-2 min |
+| Addon (source compilation needed, e.g. numpy on centos6) | 10-15 min | 3-5 min |
 
-- 同一平台二次构建大部分命中 Docker 层缓存, 秒级~分钟级完成
-- 时间瓶颈在 Python 源码编译 (make), 加速手段见"[六、构建加速](#六构建加速)"
+- Rebuilding the same platform mostly hits the Docker layer cache and finishes in seconds to minutes
+- The bottleneck is compiling Python from source (make); see "[6. Speeding Up Builds](#6-speeding-up-builds)"
 
-## 二、目标机部署 (离线)
+## 2. Deployment on the Target Machine (Offline)
 
-把 tar.gz 拷到目标服务器(U 盘 / scp 均可):
+Copy the tar.gz to the target server (USB stick / scp both work):
 
 ```bash
 tar xzf mini_python-ubuntu18_amd64-py3.11.9.tar.gz
 cd mini_python
 
-./selfcheck.sh          # 自检: 解释器/标准库/已装包
+./selfcheck.sh          # self-check: interpreter / standard library / installed packages
 ./python3 your_script.py
 ./pip3 list
 ```
 
-无需 root、无需安装任何系统依赖, 目录可整体移动到任意路径。
+No root required, no system dependencies to install, and the directory can be moved as a whole to any path.
 
-## 三、增量包 (后期添加新包)
+## 3. Addon Packages (Adding New Packages Later)
 
-打包机上(构建镜像缺失时会自动以空包模式补建):
+On the build machine (if the build image is missing, it is automatically rebuilt with an empty package list):
 
 ```bash
 ./build_addon.sh scikit-learn
-# 或带版本约束 / 多个包:
+# Or with version constraints / multiple packages:
 ./build_addon.sh -p ubuntu18_amd64 "scikit-learn==1.3.2" xgboost
 ```
 
-产物: `dist/addon-ubuntu18_amd64-scikit-learn-<日期>.tar.gz`
-(包含新包及其**全部依赖**的 wheel, 目标机完全离线安装)
+Artifact: `dist/addon-ubuntu18_amd64-scikit-learn-<date>.tar.gz`
+(contains the wheels of the new packages **and all their dependencies**, fully offline installable on the target)
 
-目标机上:
+On the target machine:
 
 ```bash
 tar xzf addon-ubuntu18_amd64-scikit-learn-20260728.tar.gz
 ./addon-ubuntu18_amd64-scikit-learn-20260728/install_addon.sh /path/to/mini_python
 
-# 验证
+# Verify
 /path/to/mini_python/python3 -c "import sklearn; print(sklearn.__version__)"
 ```
 
-安装脚本会先校验增量包与目标环境的 **Python 版本 / 平台一致性**, 不一致直接拒绝安装。
+The installer first verifies **Python version / platform consistency** between the addon and the
+target environment, and refuses to install on a mismatch.
 
-### GUI 包 (Qt 等) 增量包
+### Addons for GUI Packages (Qt etc.)
 
-GUI 类包的 wheel 依赖大量系统图形库 (glib/GL/X11/fontconfig 等), 最小化目标机上
-往往没有。用 `--system-pkgs` 把它们随增量包携带 (ldd 自动收集, 安装时落到环境 lib/):
+GUI package wheels depend on many system graphics libraries (glib/GL/X11/fontconfig etc.) that
+minimal target machines usually lack. Use `--system-pkgs` to ship them with the addon
+(collected automatically via ldd, installed into the environment's lib/ on the target):
 
 ```bash
-# Qt5 (PySide2 5.15) —— ubuntu18 / centos7 可用
+# Qt5 (PySide2 5.15) — works on ubuntu18 / centos7
 ./build_addon.sh -p ubuntu18_amd64 --system-pkgs \
   "libglib2.0-0 libgl1 libegl1 libfontconfig1 libfreetype6 libxkbcommon0 \
    libxkbcommon-x11-0 libdbus-1-3 libx11-6 libx11-xcb1 libxcb1 libxext6 \
@@ -256,24 +238,24 @@ GUI 类包的 wheel 依赖大量系统图形库 (glib/GL/X11/fontconfig 等), �
    libxcursor1 libasound2 libnss3 libgssapi-krb5-2 \
    libgstreamer1.0-0 libgstreamer-plugins-base1.0-0" pyside2
 
-# centos7 用 yum 包名: "glib2 mesa-libGL mesa-libEGL fontconfig freetype
+# On centos7 use yum package names: "glib2 mesa-libGL mesa-libEGL fontconfig freetype
 #   libxkbcommon libxkbcommon-x11 dbus-libs libX11 libxcb libXext libXrender
 #   libXi libSM libICE xcb-util xcb-util-image xcb-util-keysyms
 #   xcb-util-renderutil xcb-util-wm libXcomposite libXdamage libXfixes
 #   libXrandr libXtst alsa-lib nss gstreamer1 gstreamer1-plugins-base"
 
-# Qt6 (PySide6) —— 仅 ubuntu20 及更新平台 (Qt6 二进制要求 glibc >= 2.28,
-# ubuntu18=2.27 / centos7=2.17 无法运行, 老平台请用上面的 Qt5)
-./build_addon.sh -p ubuntu20_amd64 --system-pkgs "... (同上, 另加 libopengl0 libxcb-cursor0)" pyside6
+# Qt6 (PySide6) — ubuntu20 and newer only (Qt6 binaries require glibc >= 2.28;
+# ubuntu18=2.27 / centos7=2.17 cannot run them — use Qt5 above on older platforms)
+./build_addon.sh -p ubuntu20_amd64 --system-pkgs "... (same as above, plus libopengl0 libxcb-cursor0)" pyside6
 ```
 
-无显示器环境 (服务器/ssh) 运行 Qt 程序需加 `QT_QPA_PLATFORM=offscreen`;
-若目标机没有 fontconfig 配置会有 `Fontconfig error` 告警, 不影响运行,
-文字渲染需要时装系统字体或设置 `FONTCONFIG_PATH`。
+In display-less environments (servers/ssh), run Qt programs with `QT_QPA_PLATFORM=offscreen`;
+if the target has no fontconfig configuration you will see `Fontconfig error` warnings — they do
+not affect execution; install system fonts or set `FONTCONFIG_PATH` if text rendering is needed.
 
-## 四、扩展新平台
+## 4. Adding a New Platform
 
-复制一份 `config/xxx.conf` 并修改即可, 例如 Debian 11 ARM64:
+Copy a `config/xxx.conf` and edit it, e.g. Debian 11 ARM64:
 
 ```bash
 BASE_IMAGE="debian:11"
@@ -282,81 +264,88 @@ PYTHON_VERSION="3.11"
 DEFAULT_PACKAGES="numpy matplotlib pandas"
 ```
 
-然后 `./build.sh -p 你的配置名`。
+Then run `./build.sh -p <your-config-name>`.
 
-### BASE_IMAGE 写法说明
+### How to Write BASE_IMAGE
 
-`BASE_IMAGE` 是 Docker Hub 的 `仓库名:标签` (如 `ubuntu:18.04`), docker build 时**按标签精确拉取**, 不是搜索:
+`BASE_IMAGE` is a Docker Hub `repository:tag` (e.g. `ubuntu:18.04`); docker build **pulls it
+exactly by tag** — there is no searching:
 
-- 标签必须真实存在: `centos:7.9` 是无效标签(CentOS 的最小粒度是 `7.9.2009`), 写错会直接报 `manifest unknown`
-- 推荐写大版本: `centos:7` / `ubuntu:18.04` / `debian:12` / `rockylinux:9`; EOL 发行版的官方标签已固定到最后一个点版本, 不会再漂移; 需要锁定精确版本时写完整标签(如 `centos:7.9.2009`)
-- 查可用标签: Docker Hub 官方镜像的 Tags 页(如 `hub.docker.com/_/ubuntu/tags`), 或命令行:
+- The tag must actually exist: `centos:7.9` is invalid (CentOS's finest granularity is `7.9.2009`); a wrong tag fails immediately with `manifest unknown`
+- Prefer major versions: `centos:7` / `ubuntu:18.04` / `debian:12` / `rockylinux:9`; for EOL distros the official tags are pinned to the final point release and won't drift. Write the full tag (e.g. `centos:7.9.2009`) only when you need to pin an exact version
+- Browse available tags on the official image's Tags page on Docker Hub (e.g. `hub.docker.com/_/ubuntu/tags`), or from the command line:
   ```bash
   curl -s "https://registry.hub.docker.com/v2/repositories/library/ubuntu/tags?page_size=100" \
       | grep -oE '"name": *"[^"]+"'
   ```
-- 选版本原则: 基础镜像的 glibc 版本要 **≤ 目标机**的 glibc, 且尽量与目标机同版本(保证 wheel/共享库兼容)
+- Version rule: the base image's glibc must be **<= the target machine's** glibc, and ideally the same version (to guarantee wheel/shared-library compatibility)
 
-包管理器家族**无需声明**: 构建时按基础镜像内的 `/etc/os-release` 自动判断
-(ubuntu/debian 走 apt, 其余走 yum)。RHEL 系平台参考已内置的 `config/centos7_amd64.conf`
-(CentOS 7 构建时会自动切 vault 归档源并源码编译 OpenSSL 1.1.1, 见"注意事项")。
+The package-manager family needs **no declaration**: the build auto-detects it from
+`/etc/os-release` inside the base image (ubuntu/debian use apt, everything else uses yum).
+For RHEL-family platforms refer to the built-in `config/centos7_amd64.conf` (CentOS 7 builds
+automatically switch to the vault archive sources and compile OpenSSL 1.1.1 from source, see "Notes").
 
-## 五、清理 Docker 镜像
+## 5. Cleaning Up Docker Images
 
-本工具的容器都是即用即删(`--rm` / trap 兜底), **不会残留容器**; 但会保留两类镜像:
+All containers used by this tool are ephemeral (`--rm` / trap fallback) — **no leftover containers**;
+but two kinds of images are kept:
 
-| 镜像 | 体积参考 | 作用 |
+| Image | Size Reference | Purpose |
 |---|---|---|
-| `mini-py-pack/<平台>:py<版本>` | ~1.5GB | 构建镜像, **build_addon.sh 制作增量包时复用** |
-| `ubuntu:18.04` / `centos:7` 等 | 100~200MB | 基础镜像, 重复构建时作缓存 |
+| `mini-py-pack/<platform>:py<version>` | ~1.5GB | Build image, **reused by build_addon.sh for addons** |
+| `ubuntu:18.04` / `centos:7` etc. | 100-200MB | Base images, cached for repeat builds |
 
 ```bash
-docker images                                      # 查看现有镜像
-docker rmi mini-py-pack/ubuntu18_amd64:py3.11   # 删指定构建镜像
-docker image prune                                 # 清理构建失败产生的悬空镜像
-docker builder prune                               # 清理 build 缓存
-docker system df                                   # 查看 Docker 磁盘占用明细
+docker images                                      # list images
+docker rmi mini-py-pack/ubuntu18_amd64:py3.11   # remove a specific build image
+docker image prune                                 # remove dangling images from failed builds
+docker builder prune                               # clear the build cache
+docker system df                                   # show Docker disk usage breakdown
 ```
 
-注意:
+Notes:
 
-- **删除构建镜像后**, 首次构建增量包会自动以空包模式补建镜像(耗时等同一次空包构建,
-  约 5~10 分钟); 若近期还要加包, 建议保留
-- `dist/` 下已导出的 tar.gz 不依赖任何镜像, 删镜像不影响已交付的包
-- 项目彻底结束时可一并清理: `docker rmi $(docker images -q 'mini-py-pack/*')`
+- **After deleting the build image**, the first addon build automatically rebuilds it with an
+  empty package list (costing the same as one empty base build, ~5-10 min); keep it if you plan to add more packages soon
+- The tar.gz files already exported to `dist/` do not depend on any image; deleting images never affects delivered packs
+- When retiring the project entirely: `docker rmi $(docker images -q 'mini-py-pack/*')`
 
-## 六、构建加速
+## 6. Speeding Up Builds
 
-- **macOS 启用 Rosetta 模拟**: Docker Desktop → Settings → General → 勾选
-  "Use Rosetta for x86/amd64 emulation", 比默认 QEMU 快 2~4 倍
-- **原生 amd64 Linux 上构建**: 彻底消除模拟开销, 全量包可压到 5~10 分钟
-- **多平台并行构建**: 多终端同时跑各自的 `./build.sh`, 总墙钟时间 ≈ 最慢的平台
-  (受 CPU 核数限制)
-- **善用层缓存**: 不要随意加 `--no-cache`; 同一 BASE_IMAGE 的工具链层可跨构建复用,
-  二次构建命中缓存时秒级完成
-- **预编译 Python**: 通过 `PYTHON_BUILD_TAG` 可走 python-build-standalone 预编译通道,
-  跳过 5~8 分钟的源码编译; 注意 CentOS 6 等 glibc < 2.17 的平台不可用,
-  且目标机 glibc 过老时预编译产物可能跑不起来, 交付前先自检确认
-- addon 构建默认 `--prefer-binary`, 有预编译 wheel 的包直接下载不编译, 无需额外操作
+- **Enable Rosetta emulation on macOS**: Docker Desktop → Settings → General → enable
+  "Use Rosetta for x86/amd64 emulation" — 2-4x faster than the default QEMU
+- **Build on a native amd64 Linux machine**: eliminates emulation overhead entirely; a full pack takes 5-10 min
+- **Build multiple platforms in parallel**: run separate `./build.sh` in multiple terminals;
+  total wall-clock time ≈ the slowest platform (bounded by CPU cores)
+- **Leverage the layer cache**: don't add `--no-cache` casually; the toolchain layer of the same
+  BASE_IMAGE is reused across builds, and cached rebuilds finish in seconds
+- **Prebuilt Python**: `PYTHON_BUILD_TAG` enables the python-build-standalone prebuilt channel,
+  skipping the 5-8 min source compilation; note it's unusable on glibc < 2.17 platforms such as
+  CentOS 6, and prebuilt binaries may not run on targets with very old glibc — selfcheck before delivery
+- Addon builds use `--prefer-binary` by default: packages with prebuilt wheels are downloaded
+  instead of compiled, no extra action needed
 
-## 注意事项
+## Notes
 
-- **apt 源自动适配**: 支持 Ubuntu 和 Debian 全系列。自动识别源配置文件位置
-  (Debian ≥12 用 DEB822 格式 `debian.sources`); `apt-get update` 失败时自动切换归档源
-  (Ubuntu → `old-releases.ubuntu.com`; Debian → `archive.debian.org`);
-  仍失败则回滚并提示检查网络或改用 `APT_MIRROR` 镜像源
-- **CentOS 7 支持**: CentOS 7 已彻底 EOL, 构建时自动切换到 `vault.centos.org`
-  归档源(`APT_MIRROR` 非空时用 `<镜像>/centos-vault`); 系统 OpenSSL 1.0.2 低于
-  Python 3.10 要求的 1.1.1, 构建镜像会自动源码编译一份, `libssl.so.1.1` 随包携带,
-  目标机无需任何额外操作
-- **跨架构构建**: 在 Apple Silicon / ARM 机器上构建 amd64 包会走 QEMU/Rosetta 模拟,
-  编译耗时明显增加(约 20~40 分钟); Linux 宿主机若报 `exec format error`,
-  先执行 `docker run --privileged --rm tonistiigi/binfmt --install all`
-- **matplotlib**: 入口脚本默认设置 `MPLBACKEND=Agg`(服务器无图形界面), 绘图请用
-  `plt.savefig()`; 如有 X 环境可通过 `MPLBACKEND=TkAgg` 覆盖(需自行补装 tkinter)
-- **`--optimize`**: 加 PGO+LTO 编译, 解释器性能提升 10%~30%, 正式交付时建议开启
-- **体积裁剪范围**: 已删除标准库测试/IDLE/tkinter/头文件/静态库、第三方包 tests 目录
-  (numpy 除外, 其 `numpy.testing` 运行时依赖 tests 目录)、调试符号; 如某些包运行时
-  依赖自身 tests 目录, 可在 `scripts/build_python.sh` 中调整裁剪规则
-- **增量包机制**: 目标机上的环境保留了完整 pip, 所以任何时候也可以手动
-  `./pip3 install --no-index --find-links <wheel目录> <包名>` 安装自备的 wheel
+- **Automatic apt source adaptation**: supports all Ubuntu and Debian releases. Source file
+  locations are auto-detected (Debian >= 12 uses DEB822-format `debian.sources`); if `apt-get update`
+  fails, archive sources are used automatically (Ubuntu → `old-releases.ubuntu.com`;
+  Debian → `archive.debian.org`); if that still fails, the change is rolled back with a hint to
+  check the network or set `APT_MIRROR`
+- **CentOS 7 support**: CentOS 7 is fully EOL; builds automatically switch to the
+  `vault.centos.org` archive (`<mirror>/centos-vault` when `APT_MIRROR` is set). Its system
+  OpenSSL 1.0.2 is below the 1.1.1 required by Python 3.10+, so the build image compiles one from
+  source; `libssl.so.1.1` is shipped in the pack — no extra steps on the target machine
+- **Cross-architecture builds**: building amd64 packs on Apple Silicon / ARM hosts uses
+  QEMU/Rosetta emulation and is significantly slower (~20-40 min). If a Linux host reports
+  `exec format error`, first run `docker run --privileged --rm tonistiigi/binfmt --install all`
+- **matplotlib**: the entry script sets `MPLBACKEND=Agg` by default (headless servers); render
+  with `plt.savefig()`; override with `MPLBACKEND=TkAgg` if you have an X environment
+  (you must install tkinter yourself)
+- **`--optimize`**: enables PGO+LTO compilation, 10%-30% faster interpreter; recommended for production deliveries
+- **What trimming removes**: stdlib tests/IDLE/tkinter/headers/static libs, third-party `tests`
+  directories (except numpy, whose `numpy.testing` needs its tests directory at runtime), and debug
+  symbols; if a package needs its own tests directory at runtime, adjust the trimming rules in
+  `scripts/build_python.sh`
+- **Addon mechanism**: the environment on the target keeps a full pip, so you can always manually
+  `./pip3 install --no-index --find-links <wheel-dir> <package>` to install your own wheels
