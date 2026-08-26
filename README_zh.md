@@ -15,7 +15,6 @@ Python 运行环境, 并支持后续**增量添加新包**。
 - [三、增量包 (后期添加新包)](#三增量包-后期添加新包)
 - [四、扩展新平台](#四扩展新平台)
 - [五、清理 Docker 镜像](#五清理-docker-镜像)
-- [六、构建加速](#六构建加速)
 - [注意事项](#注意事项)
 
 ## 快速开始
@@ -175,7 +174,7 @@ CentOS 6 为 numpy==1.26.4, 对照参考)：
 | addon（需源码编译, 如 centos6 numpy） | 10~15 分钟 | 3~5 分钟 |
 
 - 同一平台二次构建大部分命中 Docker 层缓存, 秒级~分钟级完成
-- 时间瓶颈在 Python 源码编译 (make), 加速手段见"[六、构建加速](#六构建加速)"
+- 时间瓶颈在 Python 源码编译 (make)
 
 ## 二、目标机部署 (离线)
 
@@ -302,20 +301,6 @@ docker system df                                   # 查看 Docker 磁盘占用�
   约 5~10 分钟); 若近期还要加包, 建议保留
 - `dist/` 下已导出的 tar.gz 不依赖任何镜像, 删镜像不影响已交付的包
 - 项目彻底结束时可一并清理: `docker rmi $(docker images -q 'mini-py-pack/*')`
-
-## 六、构建加速
-
-- **macOS 启用 Rosetta 模拟**: Docker Desktop → Settings → General → 勾选
-  "Use Rosetta for x86/amd64 emulation", 比默认 QEMU 快 2~4 倍
-- **原生 amd64 Linux 上构建**: 彻底消除模拟开销, 全量包可压到 5~10 分钟
-- **多平台并行构建**: 多终端同时跑各自的 `./build.sh`, 总墙钟时间 ≈ 最慢的平台
-  (受 CPU 核数限制)
-- **善用层缓存**: 不要随意加 `--no-cache`; 同一 BASE_IMAGE 的工具链层可跨构建复用,
-  二次构建命中缓存时秒级完成
-- **预编译 Python**: 通过 `PYTHON_BUILD_TAG` 可走 python-build-standalone 预编译通道,
-  跳过 5~8 分钟的源码编译; 注意 CentOS 6 等 glibc < 2.17 的平台不可用,
-  且目标机 glibc 过老时预编译产物可能跑不起来, 交付前先自检确认
-- addon 构建默认 `--prefer-binary`, 有预编译 wheel 的包直接下载不编译, 无需额外操作
 
 ## 注意事项
 

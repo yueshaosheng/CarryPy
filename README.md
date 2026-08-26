@@ -16,7 +16,6 @@ adding new packages** afterwards.
 - [3. Addon Packages (Adding New Packages Later)](#3-addon-packages-adding-new-packages-later)
 - [4. Adding a New Platform](#4-adding-a-new-platform)
 - [5. Cleaning Up Docker Images](#5-cleaning-up-docker-images)
-- [6. Speeding Up Builds](#6-speeding-up-builds)
 - [Notes](#notes)
 
 ## Quick Start
@@ -177,7 +176,7 @@ Measured on Apple Silicon (macOS building linux/amd64 via QEMU/Rosetta emulation
 | Addon (source compilation needed, e.g. numpy on centos6) | 10-15 min | 3-5 min |
 
 - Rebuilding the same platform mostly hits the Docker layer cache and finishes in seconds to minutes
-- The bottleneck is compiling Python from source (make); see "[6. Speeding Up Builds](#6-speeding-up-builds)"
+- The bottleneck is compiling Python from source (make)
 
 ## 2. Deployment on the Target Machine (Offline)
 
@@ -309,21 +308,6 @@ Notes:
   empty package list (costing the same as one empty base build, ~5-10 min); keep it if you plan to add more packages soon
 - The tar.gz files already exported to `dist/` do not depend on any image; deleting images never affects delivered packs
 - When retiring the project entirely: `docker rmi $(docker images -q 'mini-py-pack/*')`
-
-## 6. Speeding Up Builds
-
-- **Enable Rosetta emulation on macOS**: Docker Desktop → Settings → General → enable
-  "Use Rosetta for x86/amd64 emulation" — 2-4x faster than the default QEMU
-- **Build on a native amd64 Linux machine**: eliminates emulation overhead entirely; a full pack takes 5-10 min
-- **Build multiple platforms in parallel**: run separate `./build.sh` in multiple terminals;
-  total wall-clock time ≈ the slowest platform (bounded by CPU cores)
-- **Leverage the layer cache**: don't add `--no-cache` casually; the toolchain layer of the same
-  BASE_IMAGE is reused across builds, and cached rebuilds finish in seconds
-- **Prebuilt Python**: `PYTHON_BUILD_TAG` enables the python-build-standalone prebuilt channel,
-  skipping the 5-8 min source compilation; note it's unusable on glibc < 2.17 platforms such as
-  CentOS 6, and prebuilt binaries may not run on targets with very old glibc — selfcheck before delivery
-- Addon builds use `--prefer-binary` by default: packages with prebuilt wheels are downloaded
-  instead of compiled, no extra action needed
 
 ## Notes
 
