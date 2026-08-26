@@ -25,7 +25,8 @@ usage() {
   -h, --help                 显示帮助
 
 说明:
-  必须先执行过 ./build.sh 生成对应平台的构建镜像。
+  构建镜像由 ./build.sh 生成; 若不存在会自动以空包模式补建。
+  也可提前执行 ./build.sh -p <平台> 手动构建。
   包名支持版本约束, 如 "scikit-learn==1.3.2" (带约束时请加引号)。
 
 环境变量:
@@ -69,15 +70,21 @@ fi
 source "$CONF"
 
 PYVER="${PYVER_OVERRIDE:-$PYTHON_VERSION}"
-IMAGE="mini-py-pack/${PLATFORM}:py${PYVER}"
+# 镜像标签按短版本(主.次)拼接, 与 build.sh 的打标签规则保持一致,
+# 避免 --python 传完整版本时找不到镜像
+PYVER_SHORT="$(echo "$PYVER" | cut -d. -f1,2)"
+IMAGE="mini-py-pack/${PLATFORM}:py${PYVER_SHORT}"
 
 command -v docker >/dev/null 2>&1 || { echo "错误: 未安装 docker"; exit 1; }
 docker info >/dev/null 2>&1 || { echo "错误: docker 守护进程未运行"; exit 1; }
 
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-    echo "错误: 找不到构建镜像 $IMAGE"
-    echo "请先执行: ./build.sh -p $PLATFORM --python $PYVER"
-    exit 1
+    echo "==> 构建镜像 $IMAGE 不存在, 自动以空包模式补建构建环境 (预计 5~10 分钟, 命中缓存更快) ..."
+    "$ROOT/build.sh" -p "$PLATFORM" --python "$PYVER" --packages ""
+    if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+        echo "错误: 自动补建构建镜像失败: $IMAGE"
+        exit 1
+    fi
 fi
 
 # 增量包命名: addon-<平台>-<包1+包2+...>-<日期>

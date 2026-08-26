@@ -96,7 +96,11 @@ fi
 source "$CONF"
 
 PYVER="${PYVER_OVERRIDE:-$PYTHON_VERSION}"
-PACKAGES="${PKG_OVERRIDE:-$DEFAULT_PACKAGES}"
+if [ -n "$PKG_OVERRIDE" ] || [ "${PKG_OVERRIDE+set}" = "set" ]; then
+    PACKAGES="$PKG_OVERRIDE"
+else
+    PACKAGES="$DEFAULT_PACKAGES"
+fi
 PYTHON_MIRROR="${PYTHON_MIRROR:-https://mirrors.huaweicloud.com/python}"
 PIP_INDEX_URL="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
 

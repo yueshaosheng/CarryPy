@@ -8,11 +8,13 @@ Python 运行环境, 并支持后续**增量添加新包**。
 - [快速开始](#快速开始)
 - [工作原理](#工作原理)
 - [目录结构](#目录结构)
+- [支持平台与环境说明](#支持平台与环境说明)
 - [一、全量打包](#一全量打包)
 - [二、目标机部署 (离线)](#二目标机部署-离线)
 - [三、增量包 (后期添加新包)](#三增量包-后期添加新包)
 - [四、扩展新平台](#四扩展新平台)
 - [五、清理 Docker 镜像](#五清理-docker-镜像)
+- [六、构建加速](#六构建加速)
 - [注意事项](#注意事项)
 
 ## 快速开始
@@ -58,16 +60,36 @@ tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # 目�
 - CPython 通过"可执行文件相对路径"定位标准库, 解压到任意目录都能跑
 - 构建镜像会保留(`mini-py-pack/<平台>:py<版本>`), 增量包直接复用它构建
 
+### 增量包 (build_addon.sh)
+
+```
+宿主机(任意平台, 需 Docker)
+ └─ build_addon.sh <包1> [包2 ...]
+     └─ docker run (复用 build.sh 保留的构建镜像, 缺失时自动空包补建)
+         ├─ pip wheel 下载/编译新包及其全部依赖 (仅 sdist 的包才现场编译)
+         ├─ 临时安装后 ldd 收集环境外共享库 (glibc 家族除外)
+         └─ 打包 wheels + 共享库 + 离线安装脚本 → dist/addon-*.tar.gz
+```
+
+- "编译工具链"(gcc/make/开发库)只存在于构建镜像中, **不进入产物**; 产物只有裁剪后的 Python 环境
+- 空包基础包(`./build.sh --packages ""`) = 解释器 + **完整标准库**(仅裁减了测试套件/IDLE/头文件等),
+  不含第三方包; 配合增量包按需叠加, 总体积 ≈ 全量包
+
 ## 目录结构
 
 ```
 ├── build.sh                      # 全量打包入口 (宿主机)
 ├── build_addon.sh                # 增量包打包入口 (宿主机)
 ├── config/
-│   ├── ubuntu18_amd64.conf       # 平台配置: 基础镜像/架构/Python版本/默认包
-│   ├── ubuntu20_amd64.conf       # 平台扩展示例
-│   ├── centos7_amd64.conf        # CentOS 7.9 (yum + vault 源 + 自编译 OpenSSL 1.1.1)
-│   └── rocky8_amd64.conf         # Rocky Linux 8 (yum, 官方源活跃, 系统 OpenSSL 1.1.1)
+│   ├── ubuntu18_amd64.conf       # Ubuntu 18.04 (EOL, 自动切 old-releases 源)
+│   ├── ubuntu20_amd64.conf       # Ubuntu 20.04 LTS
+│   ├── ubuntu22_amd64.conf       # Ubuntu 22.04 LTS
+│   ├── ubuntu24_amd64.conf       # Ubuntu 24.04 LTS
+│   ├── debian12_amd64.conf       # Debian 12 (DEB822 格式源)
+│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + 自编译 OpenSSL + sqlite3)
+│   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault 源 + 自编译 OpenSSL)
+│   ├── rocky8_amd64.conf         # Rocky Linux 8
+│   └── rocky9_amd64.conf         # Rocky Linux 9
 ├── docker/Dockerfile             # 通用构建镜像 (参数全部 build-arg 注入)
 └── scripts/
     ├── build_python.sh           # [容器内] 编译 Python + 装预装包 + 收集共享库
@@ -80,6 +102,29 @@ tar xzf addon-*.tar.gz && addon-*/install_addon.sh /path/to/mini_python   # 目�
         ├── selfcheck_pkgs.py     # 每个包的功能冒烟测试 (全量包/增量包共用)
         └── install_addon.sh      # 增量包离线安装脚本 (装完自动自检)
 ```
+
+## 支持平台与环境说明
+
+| 平台 | 状态 | glibc | GCC | OpenSSL | 特殊处理 |
+|---|---|---|---|---|---|
+| **Ubuntu 24.04** | 活跃 (ESM 至 2036) | 2.39 | 13.2 | 3.0.13 | 无, 系统库直接可用 |
+| **Ubuntu 22.04** | 活跃 (ESM 至 2034) | 2.35 | 11.4 | 3.0.2 | 无, 系统库直接可用 |
+| **Ubuntu 20.04** | 活跃 (ESM 至 2030) | 2.31 | 9.4 | 1.1.1f | 无, 系统库直接可用 |
+| **Ubuntu 18.04** | EOL (2023) | 2.27 | 7.5 | 1.1.1 | apt 源自动切换到 `old-releases.ubuntu.com` |
+| **Debian 12** | 活跃 (至 2028) | 2.36 | 12.2 | 3.0.11 | 无, 源文件自动识别 (DEB822 格式) |
+| **Rocky Linux 9** | 活跃 (至 2032) | 2.34 | 11.4 | 3.0.7 | 无, 官方源活跃直接可用 |
+| **Rocky Linux 8** | 活跃 (至 2029) | 2.28 | 8.5 | 1.1.1k | 无, 官方源活跃直接可用 |
+| **CentOS 7.9** | EOL (2024) | 2.17 | 4.8 | 1.0.2k | ① yum 源切 `vault.centos.org` 归档<br>② 源码编译 OpenSSL 1.1.1w<br>③ SCL devtoolset-9 (GCC 9) |
+| **CentOS 6.10** | EOL (2020) | 2.12 | 4.4 | 1.0.1e | ① yum 源切 `vault.centos.org` 归档<br>② SCL devtoolset-9 (GCC 9.1)<br>③ 源码编译 OpenSSL 1.1.1w + sqlite3 3.46<br>④ numpy 固定 ==1.26.4 (GCC 9.1 < 9.3) |
+
+> 以上处理**全部自动完成**, 无需手动干预。构建产物自带所需共享库 (`libssl.so.1.1` 等),
+> 目标机无需安装任何额外依赖。
+
+### 老平台限制
+
+- **CentOS 6 (glibc 2.12)**: Python 最高支持 3.9; numpy 2.x 要求 GCC ≥ 9.3 而 devtoolset-9 仅提供 9.1.1, 因此固定 `numpy==1.26.4`; scikit-learn 几乎无兼容 wheel, 默认不装
+- **CentOS 7 (glibc 2.17)**: 系统 OpenSSL 1.0.2 不满足 Python 3.10+ 要求, 自动源码编译 OpenSSL 1.1.1; scikit-learn 可能无兼容 wheel, 默认不装
+- **Ubuntu 18.04 (glibc 2.27)**: Qt6 (PySide6) 要求 glibc ≥ 2.28, 无法运行; 如需 GUI 请用 Qt5 (PySide2)
 
 ## 一、全量打包
 
@@ -101,19 +146,58 @@ PIP_INDEX_URL=https://pypi.org/simple \
 
 ### 产物体积参考
 
-预装包均为 `numpy matplotlib pandas seaborn openpyxl` (CentOS 6 为 numpy==1.26.4)：
+实测于 2026-08-26。
+
+**空包基础包**(`--packages ""`, 解释器 + 完整标准库, 不含第三方包):
+
+| 平台 | Python | 体积 |
+|---|---|---|
+| CentOS 6 AMD64 | 3.9.25 | 11 MB |
+| CentOS 7 AMD64 | 3.11.16 | 11 MB |
+| Rocky 8 AMD64 | 3.11.16 | 12 MB |
+| Rocky 9 AMD64 | 3.11.16 | 13 MB |
+| Ubuntu 18 / 20 AMD64 | 3.11.16 | 12 MB |
+| Ubuntu 22 / 24 AMD64 | 3.11.16 | 13 MB |
+| Debian 12 AMD64 | 3.11.16 | 13 MB |
+
+**addon 增量包**(`numpy matplotlib pandas seaborn openpyxl`, 15~17 个 wheel):
+
+| 平台 | 体积 | 备注 |
+|---|---|---|
+| CentOS 6 AMD64 | 36 MB | numpy==1.26.4 源码编译 |
+| CentOS 7 AMD64 | 53 MB | 17 个 wheel (多 pytz/tzdata) |
+| 其余 7 个平台 | 51 MB | 全部预编译 wheel |
+
+> 基础包 + addon ≈ 全量包体积 (如 ubuntu22: 13+51=64 MB, 全量包 69 MB)
+
+**全量包** (预装包均为 `numpy matplotlib pandas seaborn openpyxl`,
+CentOS 6 为 numpy==1.26.4, 对照参考)：
 
 | 平台 | Python | 压缩包体积 |
 |---|---|---|
-| Ubuntu 18 AMD64 | 3.11.16 | 68 MB |
-| Ubuntu 20 AMD64 | 3.11.16 | 68 MB |
+| Ubuntu 18 / 20 / 22 AMD64 | 3.11.16 | 68~69 MB |
 | CentOS 7 AMD64 | 3.11.16 | 69 MB |
-| Rocky 8 AMD64 | 3.11.16 | 67 MB |
+| Rocky 8 / 9 AMD64 | 3.11.16 | 67~69 MB |
+| Debian 12 AMD64 | 3.11.16 | 69 MB |
 | CentOS 6 AMD64 | 3.9.25 | 49 MB |
 
 增量包示例: `addon-ubuntu18_amd64-plotly` 约 16 MB
 
 > 体积随预装包数量变化; 仅 numpy/matplotlib/pandas 时约 50~55 MB
+
+### 构建时间参考
+
+实测于 Apple Silicon (macOS 通过 QEMU/Rosetta 模拟构建 linux/amd64), 2026-08-26:
+
+| 场景 | Apple Silicon (模拟构建) | 原生 amd64 Linux |
+|---|---|---|
+| 全量包（带默认包） | 20~40 分钟 | 5~10 分钟 |
+| 空包基础包 | 5~10 分钟 | 2~4 分钟 |
+| addon（包有二进制 wheel） | 3~5 分钟 | 1~2 分钟 |
+| addon（需源码编译, 如 centos6 numpy） | 10~15 分钟 | 3~5 分钟 |
+
+- 同一平台二次构建大部分命中 Docker 层缓存, 秒级~分钟级完成
+- 时间瓶颈在 Python 源码编译 (make), 加速手段见"[六、构建加速](#六构建加速)"
 
 ## 二、目标机部署 (离线)
 
@@ -132,7 +216,7 @@ cd mini_python
 
 ## 三、增量包 (后期添加新包)
 
-打包机上(需保留过全量构建的镜像):
+打包机上(构建镜像缺失时会自动以空包模式补建):
 
 ```bash
 ./build_addon.sh scikit-learn
@@ -200,6 +284,19 @@ DEFAULT_PACKAGES="numpy matplotlib pandas"
 
 然后 `./build.sh -p 你的配置名`。
 
+### BASE_IMAGE 写法说明
+
+`BASE_IMAGE` 是 Docker Hub 的 `仓库名:标签` (如 `ubuntu:18.04`), docker build 时**按标签精确拉取**, 不是搜索:
+
+- 标签必须真实存在: `centos:7.9` 是无效标签(CentOS 的最小粒度是 `7.9.2009`), 写错会直接报 `manifest unknown`
+- 推荐写大版本: `centos:7` / `ubuntu:18.04` / `debian:12` / `rockylinux:9`; EOL 发行版的官方标签已固定到最后一个点版本, 不会再漂移; 需要锁定精确版本时写完整标签(如 `centos:7.9.2009`)
+- 查可用标签: Docker Hub 官方镜像的 Tags 页(如 `hub.docker.com/_/ubuntu/tags`), 或命令行:
+  ```bash
+  curl -s "https://registry.hub.docker.com/v2/repositories/library/ubuntu/tags?page_size=100" \
+      | grep -oE '"name": *"[^"]+"'
+  ```
+- 选版本原则: 基础镜像的 glibc 版本要 **≤ 目标机**的 glibc, 且尽量与目标机同版本(保证 wheel/共享库兼容)
+
 包管理器家族**无需声明**: 构建时按基础镜像内的 `/etc/os-release` 自动判断
 (ubuntu/debian 走 apt, 其余走 yum)。RHEL 系平台参考已内置的 `config/centos7_amd64.conf`
 (CentOS 7 构建时会自动切 vault 归档源并源码编译 OpenSSL 1.1.1, 见"注意事项")。
@@ -223,15 +320,30 @@ docker system df                                   # 查看 Docker 磁盘占用�
 
 注意:
 
-- **删除构建镜像后, 增量包功能失效**, 需重新 `./build.sh` 完整构建(20~40 分钟)
-  才能恢复; 若近期还要加包, 建议保留
+- **删除构建镜像后**, 首次构建增量包会自动以空包模式补建镜像(耗时等同一次空包构建,
+  约 5~10 分钟); 若近期还要加包, 建议保留
 - `dist/` 下已导出的 tar.gz 不依赖任何镜像, 删镜像不影响已交付的包
 - 项目彻底结束时可一并清理: `docker rmi $(docker images -q 'mini-py-pack/*')`
 
+## 六、构建加速
+
+- **macOS 启用 Rosetta 模拟**: Docker Desktop → Settings → General → 勾选
+  "Use Rosetta for x86/amd64 emulation", 比默认 QEMU 快 2~4 倍
+- **原生 amd64 Linux 上构建**: 彻底消除模拟开销, 全量包可压到 5~10 分钟
+- **多平台并行构建**: 多终端同时跑各自的 `./build.sh`, 总墙钟时间 ≈ 最慢的平台
+  (受 CPU 核数限制)
+- **善用层缓存**: 不要随意加 `--no-cache`; 同一 BASE_IMAGE 的工具链层可跨构建复用,
+  二次构建命中缓存时秒级完成
+- **预编译 Python**: 通过 `PYTHON_BUILD_TAG` 可走 python-build-standalone 预编译通道,
+  跳过 5~8 分钟的源码编译; 注意 CentOS 6 等 glibc < 2.17 的平台不可用,
+  且目标机 glibc 过老时预编译产物可能跑不起来, 交付前先自检确认
+- addon 构建默认 `--prefer-binary`, 有预编译 wheel 的包直接下载不编译, 无需额外操作
+
 ## 注意事项
 
-- **apt 源自动适配**: 构建时若 `apt-get update` 失败, 会自动切换到
-  `old-releases.ubuntu.com` 重试(发行版 EOL 后仓库会被官方迁移到那里);
+- **apt 源自动适配**: 支持 Ubuntu 和 Debian 全系列。自动识别源配置文件位置
+  (Debian ≥12 用 DEB822 格式 `debian.sources`); `apt-get update` 失败时自动切换归档源
+  (Ubuntu → `old-releases.ubuntu.com`; Debian → `archive.debian.org`);
   仍失败则回滚并提示检查网络或改用 `APT_MIRROR` 镜像源
 - **CentOS 7 支持**: CentOS 7 已彻底 EOL, 构建时自动切换到 `vault.centos.org`
   归档源(`APT_MIRROR` 非空时用 `<镜像>/centos-vault`); 系统 OpenSSL 1.0.2 低于

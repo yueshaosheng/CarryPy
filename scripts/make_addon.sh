@@ -20,6 +20,11 @@ PY_MM="$(echo "$PYTHON_VERSION" | cut -d. -f1,2)"
 PY="$PREFIX/bin/python${PY_MM}"
 OUT_DIR=/out
 
+# CentOS 6 等: 若安装了 SCL devtoolset, 激活新版 GCC (保证 wheel 编译使用正确工具链)
+export MANPATH="${MANPATH:-}"
+export INFOPATH="${INFOPATH:-}"
+[ -f /opt/rh/devtoolset-9/enable ] && source /opt/rh/devtoolset-9/enable
+
 NAME="${ADDON_NAME:-addon-${PLATFORM_NAME}-$(date +%Y%m%d_%H%M%S)}"
 WORK="/tmp/${NAME}"
 mkdir -p "$WORK/wheels"

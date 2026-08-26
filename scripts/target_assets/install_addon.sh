@@ -69,6 +69,7 @@ else
             pillow)        mod=PIL ;;
             opencv-python) mod=cv2 ;;
             pyyaml)        mod=yaml ;;
+            pytorch)       mod=torch ;;
             pyside2)       mod=PySide2 ;;
             pyside6)       mod=PySide6 ;;
             pyqt5)         mod=PyQt5 ;;

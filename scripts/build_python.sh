@@ -21,6 +21,9 @@ PY_BIN="python${PY_MM}"
 log() { echo ""; echo "==> $*"; }
 
 # CentOS 6 等: 若安装了 SCL devtoolset, 激活新版 GCC (Dockerfile 中已安装)
+# 先补全 devtoolset enable 脚本可能引用的环境变量, 避免 set -u 报错
+export MANPATH="${MANPATH:-}"
+export INFOPATH="${INFOPATH:-}"
 [ -f /opt/rh/devtoolset-9/enable ] && source /opt/rh/devtoolset-9/enable
 
 # ---------------- 检查是否已有预编译 Python (python-build-standalone 等) ----------------

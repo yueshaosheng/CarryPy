@@ -27,9 +27,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # 的 ID 自动判断 (无需在平台配置里声明 OS_FAMILY):
 #
 # [apt] ubuntu / debian:
-#   1. APT_MIRROR 非空时先替换为镜像源 (如 mirrors.aliyun.com)
-#   2. apt-get update 失败时, 自动切换到 old-releases.ubuntu.com 重试
-#      (发行版 EOL 后仓库会被官方迁移到那里); 仍失败则回滚源配置并给出明确提示
+#   1. 自动识别源配置文件位置 (Ubuntu ≥24 / Debian ≥12 用 DEB822 格式 .sources)
+#   2. APT_MIRROR 非空时先替换为镜像源 (如 mirrors.aliyun.com)
+#   3. apt-get update 失败时, 自动切换到归档源重试:
+#      Ubuntu → old-releases.ubuntu.com; Debian → archive.debian.org
+#      仍失败则回滚源配置并给出明确提示
 #
 # [yum] 其余发行版 (centos / rocky / almalinux 等), 按 VERSION_ID 分流:
 #   CentOS 6 (EOL): 无 /etc/os-release, 从 /etc/redhat-release 检测;
@@ -40,7 +42,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 #   CentOS 7 (EOL): 仓库已迁移到 vault.centos.org, 切 7.9.2009 归档源;
 #     系统 GCC 4.8 不支持 Python 3.10+, 额外安装 SCL devtoolset-9 (GCC 9);
 #     系统 OpenSSL 1.0.2 不满足 Python >=3.10 的 >=1.1.1 要求, 额外源码编译到 /opt/openssl11
-#   Rocky 8 等: 官方源活跃, 无需切源; 系统 OpenSSL 1.1.1 + openssl-devel 直接可用
+#   Rocky 8 / Rocky 9 等: 官方源活跃, 无需切源; 系统 OpenSSL 直接可用
 RUN set -e; \
     if [ -f /etc/os-release ]; then \
         PKG_ID=$(awk -F= '/^ID=/{gsub(/"/,"",$2); print $2}' /etc/os-release); \
@@ -67,6 +69,11 @@ RUN set -e; \
                 sed -i "s|http://vault.centos.org|http://${_APT_MIRROR}/centos-vault|g" \
                     /etc/yum.repos.d/CentOS-*.repo; \
             fi; \
+        fi; \
+        # RHEL 9+ (Rocky/Alma 9 等): gdbm-devel 等开发包在 CRB 仓库, 需额外启用
+        if [ "$OS_MAJOR" = "9" ] || [ "$OS_MAJOR" -gt "9" ] 2>/dev/null; then \
+            yum install -y dnf-plugins-core; \
+            dnf config-manager --set-enabled crb 2>/dev/null || true; \
         fi; \
         if [ "$OS_MAJOR" = "6" ]; then \
                 yum install -y \
@@ -126,27 +133,50 @@ RUN set -e; \
                 /opt/sqlite3/bin/sqlite3 --version; \
             fi; \
     else \
+        # apt 源配置文件可能在不同发行版/版本中位于不同路径:
+        #   Ubuntu ≤22 / Debian ≤11: /etc/apt/sources.list
+        #   Ubuntu ≥24: /etc/apt/sources.list.d/ubuntu.sources (DEB822 格式)
+        #   Debian ≥12: /etc/apt/sources.list.d/debian.sources (DEB822 格式)
+        if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+            SRC_FILE=/etc/apt/sources.list.d/debian.sources; \
+        elif [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
+            SRC_FILE=/etc/apt/sources.list.d/ubuntu.sources; \
+        else \
+            SRC_FILE=/etc/apt/sources.list; \
+        fi; \
         if [ -n "$_APT_MIRROR" ]; then \
             sed -i -e "s|http://archive.ubuntu.com|http://${_APT_MIRROR}|g" \
                    -e "s|http://security.ubuntu.com|http://${_APT_MIRROR}|g" \
-                   /etc/apt/sources.list; \
+                   -e "s|http://deb.debian.org|http://${_APT_MIRROR}|g" \
+                   -e "s|http://security.debian.org|http://${_APT_MIRROR}|g" \
+                   "$SRC_FILE"; \
         fi; \
         if ! apt-get update; then \
-            echo "==> apt-get update 失败, 尝试切换到 old-releases.ubuntu.com (发行版可能已 EOL 迁移) ..."; \
-            cp /etc/apt/sources.list /etc/apt/sources.list.bak; \
-            sed -i -e 's|http://[a-z.]*archive.ubuntu.com|http://old-releases.ubuntu.com|g' \
-                   -e 's|http://security.ubuntu.com|http://old-releases.ubuntu.com|g' \
-                   /etc/apt/sources.list; \
-            if [ -n "$_APT_MIRROR" ]; then \
-                sed -i "s|http://${_APT_MIRROR}|http://old-releases.ubuntu.com|g" /etc/apt/sources.list; \
+            echo "==> apt-get update 失败, 尝试切换到归档源 (发行版可能已 EOL 迁移) ..."; \
+            cp "$SRC_FILE" "$SRC_FILE.bak"; \
+            # Ubuntu → old-releases.ubuntu.com; Debian → archive.debian.org
+            if [ "$PKG_ID" = "ubuntu" ]; then \
+                sed -i -e 's|http://[a-z.]*archive.ubuntu.com|http://old-releases.ubuntu.com|g' \
+                       -e 's|http://security.ubuntu.com|http://old-releases.ubuntu.com|g' \
+                       "$SRC_FILE"; \
+                if [ -n "$_APT_MIRROR" ]; then \
+                    sed -i "s|http://${_APT_MIRROR}|http://old-releases.ubuntu.com|g" "$SRC_FILE"; \
+                fi; \
+            else \
+                sed -i -e 's|http://deb.debian.org|http://archive.debian.org|g' \
+                       -e 's|http://security.debian.org|http://archive.debian.org|g' \
+                       "$SRC_FILE"; \
+                if [ -n "$_APT_MIRROR" ]; then \
+                    sed -i "s|http://${_APT_MIRROR}|http://archive.debian.org|g" "$SRC_FILE"; \
+                fi; \
             fi; \
             if ! apt-get update; then \
-                mv /etc/apt/sources.list.bak /etc/apt/sources.list; \
-                echo "==> old-releases 也不可用: 大概率是网络/代理问题而非 EOL,"; \
+                mv "$SRC_FILE.bak" "$SRC_FILE"; \
+                echo "==> 归档源也不可用: 大概率是网络/代理问题而非 EOL,"; \
                 echo "    请检查网络, 或通过 APT_MIRROR 环境变量指定可用的镜像源后重试"; \
                 exit 1; \
             fi; \
-            rm -f /etc/apt/sources.list.bak; \
+            rm -f "$SRC_FILE.bak"; \
         fi; \
         apt-get install -y --no-install-recommends \
             build-essential pkg-config wget ca-certificates xz-utils \
@@ -158,8 +188,8 @@ RUN set -e; \
 # 编译层: 编译 Python -> 安装预置包 -> 收集共享库, 产出 /opt/mini_python 完整环境
 # (只 COPY build_python.sh, 改其他脚本不会触发这个 5~8 分钟的层重跑)
 COPY scripts/build_python.sh /build/build_python.sh
-RUN source /opt/rh/devtoolset-9/enable 2>/dev/null || true; \
-    bash /build/build_python.sh \
+# 注: devtoolset-9 激活已在 build_python.sh 内部处理 (兼容所有平台)
+RUN bash /build/build_python.sh \
         "${PYVER_FULL}" "${PY_PACKAGES}" "${ENABLE_OPTIMIZATIONS}" "${PYTHON_MIRROR}"
 
 # 打包层: 裁剪副本 -> 放入目标机入口脚本 -> 自检 -> tar 到 /out (1~2 分钟)

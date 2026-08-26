@@ -20,6 +20,7 @@ ALIAS = {
     "pillow": "PIL",
     "opencv-python": "cv2",
     "pyyaml": "yaml",
+    "pytorch": "torch",
     "pyside2": "PySide2",
     "pyside6": "PySide6",
     "pyqt5": "PyQt5",
@@ -131,6 +132,50 @@ def test_sklearn(tmp):
     assert score > 0.7, f"LogisticRegression score 过低: {score}"
 
 
+def test_torch(tmp):
+    import torch
+    a = torch.arange(6.0).reshape(2, 3)
+    b = torch.arange(12.0).reshape(3, 4)
+    c = a @ b
+    assert c.shape == (2, 4), f"矩阵乘法形状不对: {c.shape}"
+    assert torch.isfinite(c).all(), "矩阵乘法结果含非有限值"
+    # 自动求导冒烟: sum(x^2) 对 x 的梯度应为 2x
+    x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+    (x * x).sum().backward()
+    assert x.grad is not None, "backward 未产生梯度"
+    assert torch.allclose(x.grad, 2 * x.detach()), f"梯度不对: {x.grad}"
+
+
+def test_tensorflow(tmp):
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")   # 压低 TF 日志噪音
+    import tensorflow as tf
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(2, activation="relu", input_shape=(3,)),
+        tf.keras.layers.Dense(1),
+    ])
+    model.compile(optimizer="sgd", loss="mse")
+    xs = tf.constant([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype="float32")
+    ys = tf.constant([[0.6], [1.5]], dtype="float32")
+    model.fit(xs, ys, epochs=1, verbose=0)
+    out = model.predict(xs, verbose=0)
+    assert tuple(out.shape) == (2, 1), f"predict 输出形状不对: {out.shape}"
+    assert bool(tf.reduce_all(tf.math.isfinite(out))), "predict 输出含非有限值"
+
+
+def test_transformers(tmp):
+    import torch
+    from transformers import BertConfig, BertModel
+    # 极小参数随机初始化模型, 不下载预训练权重 (目标机离线也能跑)
+    cfg = BertConfig(vocab_size=32, hidden_size=16, num_hidden_layers=1,
+                     num_attention_heads=1, intermediate_size=32)
+    model = BertModel(cfg).eval()
+    input_ids = torch.randint(0, 32, (2, 5))
+    with torch.no_grad():
+        out = model(input_ids)
+    assert out.last_hidden_state.shape == (2, 5, 16), \
+        f"输出形状不对: {out.last_hidden_state.shape}"
+
+
 def _test_qt(binding, tmp):
     # 无显示器环境也能跑: 强制 offscreen 平台插件
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -157,6 +202,9 @@ TESTS = {
     "pillow": ("PIL", test_pillow),
     "openpyxl": ("openpyxl", test_openpyxl),
     "scikit-learn": ("sklearn", test_sklearn),
+    "torch": ("torch", test_torch),
+    "tensorflow": ("tensorflow", test_tensorflow),
+    "transformers": ("transformers", test_transformers),
     "pyside2": ("PySide2", lambda tmp: _test_qt("PySide2", tmp)),
     "pyside6": ("PySide6", lambda tmp: _test_qt("PySide6", tmp)),
     "pyqt5": ("PyQt5", lambda tmp: _test_qt("PyQt5", tmp)),
@@ -192,7 +240,16 @@ def main(argv):
 
     n_pass = n_fail = 0
     for name in names:
-        modname = TESTS[name][0] if name in TESTS else ALIAS.get(name, name.replace("-", "_"))
+        # 测试条目查找: 本名命中 TESTS; 否则别名指向的模块若也在 TESTS 中则复用其用例,
+        # 保证点名 "pytorch" 等别名也能跑完整功能测试 (而非仅 import 验证)
+        test_key = None
+        if name in TESTS:
+            test_key = name
+        else:
+            alias_mod = ALIAS.get(name)
+            if alias_mod in TESTS:
+                test_key = alias_mod
+        modname = TESTS[test_key][0] if test_key else ALIAS.get(name, name.replace("-", "_"))
         if importlib.util.find_spec(modname) is None:
             if explicit:                       # 点名模式: 点名了就必须已安装
                 print(f"  [FAIL] {name}: 未安装 (找不到模块 {modname})")
@@ -202,12 +259,12 @@ def main(argv):
         try:
             mod = importlib.import_module(modname)
             ver = getattr(mod, "__version__", "?")
-            if name in TESTS:
+            if test_key:
                 if use_tmp:
                     with tempfile.TemporaryDirectory() as tmp:
-                        TESTS[name][1](tmp)
+                        TESTS[test_key][1](tmp)
                 else:
-                    TESTS[name][1](output_dir)
+                    TESTS[test_key][1](output_dir)
                 print(f"  [PASS] {name} {ver}: 功能测试通过")
             else:                              # 无内置用例: 回退 import 验证
                 print(f"  [PASS] {name} {ver}: import 验证通过 (无内置功能测试)")
