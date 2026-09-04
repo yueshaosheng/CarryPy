@@ -60,6 +60,7 @@ CarryPy 的详细参考: 工作原理、构建选项、体积/时间数据、平
 │   ├── ubuntu20_amd64.conf       # Ubuntu 20.04 LTS
 │   ├── ubuntu22_amd64.conf       # Ubuntu 22.04 LTS
 │   ├── ubuntu24_amd64.conf       # Ubuntu 24.04 LTS
+│   ├── debian11_amd64.conf       # Debian 11 (LTS 已结束, 自动切 archive 源)
 │   ├── debian12_amd64.conf       # Debian 12 (DEB822 格式源)
 │   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + 自编译 OpenSSL + sqlite3)
 │   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault 源 + 自编译 OpenSSL)
@@ -101,7 +102,7 @@ PIP_INDEX_URL=https://pypi.org/simple \
 
 ## 产物体积参考
 
-实测于 2026-08-26。
+实测于 2026-09-04。
 
 **空包基础包**(`--packages ""`, 解释器 + 完整标准库, 不含第三方包):
 
@@ -113,30 +114,28 @@ PIP_INDEX_URL=https://pypi.org/simple \
 | Rocky 9 AMD64 | 3.11.16 | 13 MB |
 | Ubuntu 18 / 20 AMD64 | 3.11.16 | 12 MB |
 | Ubuntu 22 / 24 AMD64 | 3.11.16 | 13 MB |
+| Debian 11 AMD64 | 3.11.16 | 12 MB |
 | Debian 12 AMD64 | 3.11.16 | 13 MB |
 
-**addon 增量包**(`numpy matplotlib pandas seaborn openpyxl`, 15~17 个 wheel):
+**addon 增量包 — 科学计算套**(`numpy matplotlib pandas seaborn openpyxl scipy scikit-learn`):
 
 | 平台 | 体积 | 备注 |
 |---|---|---|
-| CentOS 6 AMD64 | 40 MB | 固定版本组合源码编译 + 随包携带 libfreetype 2.10.4 |
-| CentOS 7 AMD64 | 53 MB | 17 个 wheel (多 pytz/tzdata) |
-| 其余 7 个平台 | 51 MB | 全部预编译 wheel |
+| CentOS 6 | 80 MB | 固定版本组合源码编译 (scipy 1.11.3 / sklearn 1.3.2), 随包携带 OpenBLAS / libgfortran / freetype 2.10.4 |
+| CentOS 7 | 96 MB | manylinux2014 兼容版 (scipy 1.16.3 / sklearn 1.7.2 / numpy 2.2.6) |
+| 其余 8 个平台 | 93~94 MB | 全部最新预编译 wheel (numpy 2.4.6 / scipy 1.17.1 / sklearn 1.9.0) |
 
-> 基础包 + addon ≈ 全量包体积 (如 ubuntu22: 13+51=64 MB, 全量包 69 MB)
+**addon 增量包 — GUI 套**:
 
-**全量包** (预装包均为 `numpy matplotlib pandas seaborn openpyxl`, 对照参考)：
-
-| 平台 | Python | 压缩包体积 |
+| 平台 | 包 | 体积 |
 |---|---|---|
-| Ubuntu 18 / 20 / 22 AMD64 | 3.11.16 | 68~69 MB |
-| CentOS 7 AMD64 | 3.11.16 | 69 MB |
-| Rocky 8 / 9 AMD64 | 3.11.16 | 67~69 MB |
-| Debian 12 AMD64 | 3.11.16 | 69 MB |
+| ubuntu20/22/24, debian11/12, rocky8/9 | pyqt6 | 91~98 MB |
+| ubuntu18 | pyqt6 (自编 Qt 6.2.4 运行时) | 50 MB |
+| centos7 | pyqt5 | 72 MB |
+| centos6 | 无 (glibc 2.12 低于 Qt 二进制基线) | — |
 
-增量包示例: `addon-ubuntu18_amd64-scipy+scikit-learn` 约 59 MB (7 个 wheel)
-
-> 体积随预装包数量变化; 仅 numpy/matplotlib/pandas 时约 50~55 MB
+> 基础包 + 科学计算套 ≈ 105~107 MB, 即为一个全功能离线科学计算环境;
+> 旧版 5 包 addon (约 51 MB) 与全量包 (约 69 MB) 已由双 addon 体系取代
 
 ## 构建时间参考
 
@@ -165,14 +164,14 @@ PIP_INDEX_URL=https://pypi.org/simple \
 ./build_addon.sh -p ubuntu18_amd64 "scikit-learn==1.3.2" xgboost
 ```
 
-产物: `dist/addon-ubuntu18_amd64-scikit-learn-<日期>.tar.gz`
+产物: `dist/addon-ubuntu18_amd64-scikit-learn.tar.gz`
 (包含新包及其**全部依赖**的 wheel, 目标机完全离线安装)
 
 目标机上:
 
 ```bash
-tar xzf addon-ubuntu18_amd64-scikit-learn-20260728.tar.gz
-./addon-ubuntu18_amd64-scikit-learn-20260728/install_addon.sh /path/to/mini_python
+tar xzf addon-ubuntu18_amd64-scikit-learn.tar.gz
+./addon-ubuntu18_amd64-scikit-learn/install_addon.sh /path/to/mini_python
 
 # 验证
 /path/to/mini_python/python3 -c "import sklearn; print(sklearn.__version__)"
@@ -182,12 +181,24 @@ tar xzf addon-ubuntu18_amd64-scikit-learn-20260728.tar.gz
 
 ### GUI 包 (Qt 等) 增量包
 
+GUI 套按目标机 glibc 版本分两档:
+
+- **glibc >= 2.28** (ubuntu20/22/24, debian11/12, rocky8/9): `pyqt6` (官方 wheel)
+- **ubuntu18 (glibc 2.27)**: `pyqt6` 自编运行时版 — PPA gcc-9 源码编译 qtbase 6.2.4,
+  打包为 manylinux1 标签的 PyQt6-Qt6 wheel + 官方 PyQt6 6.2.3 绑定 (本身即 manylinux1),
+  产物约 50MB, offscreen 渲染实测通过; 编译环境保留在 `u18_qt6_stage` 镜像中可复现
+- **centos7 (glibc 2.17)**: `pyqt5`
+  (PyQt6-Qt6 wheel 历史上只发布过 manylinux_2_28, 无任何版本可回退)
+- **centos6 (glibc 2.12)**: 无可行 GUI 包 — 实测 PyQt5 5.14 (manylinux1) 能安装,
+  但 import 报 `GLIBC_2.14 not found`, 现代 Qt 二进制的 glibc 基线均高于 2.12
+
 GUI 类包的 wheel 依赖大量系统图形库 (glib/GL/X11/fontconfig 等), 最小化目标机上
 往往没有。用 `--system-pkgs` 把它们随增量包携带 (ldd 自动收集, 安装时落到环境 lib/):
 
 ```bash
-# Qt5 (PySide2 5.15) —— ubuntu18 / centos7 可用
-./build_addon.sh -p ubuntu18_amd64 --system-pkgs \
+# pyqt6 — apt 平台; 注意 Ubuntu 24.04 t64 迁移改包名:
+#   libglib2.0-0 -> libglib2.0-0t64, libasound2 -> libasound2t64
+./build_addon.sh -p ubuntu22_amd64 --system-pkgs \
   "libglib2.0-0 libgl1 libegl1 libfontconfig1 libfreetype6 libxkbcommon0 \
    libxkbcommon-x11-0 libdbus-1-3 libx11-6 libx11-xcb1 libxcb1 libxext6 \
    libxrender1 libxi6 libsm6 libice6 libxcb-icccm4 libxcb-image0 \
@@ -195,19 +206,24 @@ GUI 类包的 wheel 依赖大量系统图形库 (glib/GL/X11/fontconfig 等), �
    libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 \
    libxcb-xkb1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libxtst6 \
    libxcursor1 libasound2 libnss3 libgssapi-krb5-2 \
-   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0" pyside2
+   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libopengl0 libxcb-cursor0" pyqt6
 
-# centos7 用 yum 包名: "glib2 mesa-libGL mesa-libEGL fontconfig freetype
-#   libxkbcommon libxkbcommon-x11 dbus-libs libX11 libxcb libXext libXrender
-#   libXi libSM libICE xcb-util xcb-util-image xcb-util-keysyms
-#   xcb-util-renderutil xcb-util-wm libXcomposite libXdamage libXfixes
-#   libXrandr libXtst alsa-lib nss gstreamer1 gstreamer1-plugins-base"
+# pyqt6 — rocky8/9 用 dnf 包名 (注意: rocky8 仓库无 xcb-util-cursor, 必须去掉;
+#   rocky9 有): "glib2 mesa-libGL mesa-libEGL fontconfig freetype libxkbcommon
+#   libxkbcommon-x11 dbus-libs libX11 libXext libXrender libXi libSM libICE
+#   xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
+#   libXcomposite libXdamage libXfixes libXrandr libXtst libXcursor alsa-lib
+#   nss gstreamer1 gstreamer1-plugins-base [rocky9 另加 xcb-util-cursor]"
 
-# Qt6 (PySide6) —— 仅 ubuntu20 及更新平台 (Qt6 二进制要求 glibc >= 2.28,
-# ubuntu18=2.27 / centos7=2.17 无法运行, 老平台请用上面的 Qt5)
-./build_addon.sh -p ubuntu20_amd64 --system-pkgs "... (同上, 另加 libopengl0 libxcb-cursor0)" pyside6
+# pyqt5 — 老平台: ubuntu18 用 apt 清单, centos7 用 yum 包名清单 (均无 xcb-util-cursor):
+./build_addon.sh -p centos7_amd64 --system-pkgs \
+  "glib2 mesa-libGL mesa-libEGL fontconfig freetype libxkbcommon libxkbcommon-x11 \
+   dbus-libs libX11 libXext libXrender libXi libSM libICE xcb-util xcb-util-image \
+   xcb-util-keysyms xcb-util-renderutil xcb-util-wm libXcomposite libXdamage \
+   libXfixes libXrandr libXtst alsa-lib nss gstreamer1 gstreamer1-plugins-base" pyqt5
 ```
 
+PySide2/PySide6 同理 (库清单类似, Qt6 同样要求 glibc >= 2.28)。
 无显示器环境 (服务器/ssh) 运行 Qt 程序需加 `QT_QPA_PLATFORM=offscreen`;
 若目标机没有 fontconfig 配置会有 `Fontconfig error` 告警, 不影响运行,
 文字渲染需要时装系统字体或设置 `FONTCONFIG_PATH`。

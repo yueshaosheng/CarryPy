@@ -6,7 +6,7 @@
 
 ![Release](https://img.shields.io/github/v/release/yueshaosheng/CarryPy)
 ![Downloads](https://img.shields.io/github/downloads/yueshaosheng/CarryPy/total)
-![Platforms](https://img.shields.io/badge/platforms-9%20Linux%20distros-blue?logo=linux&logoColor=white)
+![Platforms](https://img.shields.io/badge/platforms-10%20Linux%20distros-blue?logo=linux&logoColor=white)
 ![Docker](https://img.shields.io/badge/build%20with-Docker-2496ED?logo=docker&logoColor=white)
 ![Offline](https://img.shields.io/badge/offline--ready-brightgreen)
 ![No root](https://img.shields.io/badge/root-not%20required-success)
@@ -21,8 +21,10 @@ Python packages** afterwards.
 Download from [Releases](https://github.com/yueshaosheng/CarryPy/releases):
 
 - **Base pack** `mini_python-<platform>-py<version>.tar.gz` — Python interpreter + full standard library
-- **Addon pack** `addon-<platform>-<packages>-<date>.tar.gz` — third-party packages
-  (numpy / matplotlib / pandas / seaborn / openpyxl), optional, stack as needed
+- **Scientific addon pack** `addon-<platform>-numpy+...+scikit-learn.tar.gz` —
+  numpy / matplotlib / pandas / seaborn / openpyxl / scipy / scikit-learn, optional
+- **GUI addon pack** `addon-<platform>-pyqt6.tar.gz` — PyQt6 (ubuntu18 ships a self-built
+  Qt 6.2 runtime); centos7 gets the pyqt5 variant; centos6 (glibc 2.12) has no viable GUI pack, optional
 
 Copy them to the target machine (fully offline is fine):
 
@@ -33,8 +35,8 @@ tar xzf mini_python-ubuntu22_amd64-py3.11.16.tar.gz
 ./mini_python/python3 your_script.py      # run your script
 ./mini_python/pip3 list                   # list installed packages
 
-# 2. (Optional) Install an addon pack
-tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl-20260825.tar.gz
+# 2. (Optional) Install an addon pack (scientific set shown)
+tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl+scipy+scikit-learn.tar.gz
 ./addon-*/install_addon.sh ./mini_python  # offline install + auto smoke test
 ```
 
@@ -69,7 +71,7 @@ cat config/ubuntu22_amd64.conf
 
 Artifacts land in `dist/`; deploy them exactly as in Option 1.
 
-Supported platforms: Ubuntu 18/20/22/24, Debian 12, CentOS 6/7, Rocky 8/9
+Supported platforms: Ubuntu 18/20/22/24, Debian 11/12, CentOS 6/7, Rocky 8/9
 (one config file each under `config/`; adding new platforms is covered in the advanced guide).
 
 ## Common Errors

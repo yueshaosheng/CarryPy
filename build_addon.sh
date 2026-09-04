@@ -87,13 +87,13 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
     fi
 fi
 
-# 增量包命名: addon-<平台>-<包1+包2+...>-<日期>
+# 增量包命名: addon-<平台>-<包1+包2+...>
 PKG_TAG=""
 for p in "${PKG_ARGS[@]}"; do
     clean="$(printf '%s' "$p" | sed -e 's/[=<>!~].*//' -e 's/[^A-Za-z0-9._-]/-/g')"
     PKG_TAG="${PKG_TAG:+${PKG_TAG}+}${clean}"
 done
-ADDON_NAME="addon-${PLATFORM}-${PKG_TAG}-$(date +%Y%m%d)"
+ADDON_NAME="addon-${PLATFORM}-${PKG_TAG}"
 
 echo "================ 增量包参数 ================"
 echo "  目标平台   : $PLATFORM ($DOCKER_PLATFORM)"

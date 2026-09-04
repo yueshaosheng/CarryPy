@@ -60,6 +60,7 @@ Build host (any platform, Docker required)
 │   ├── ubuntu20_amd64.conf       # Ubuntu 20.04 LTS
 │   ├── ubuntu22_amd64.conf       # Ubuntu 22.04 LTS
 │   ├── ubuntu24_amd64.conf       # Ubuntu 24.04 LTS
+│   ├── debian11_amd64.conf       # Debian 11 (LTS ended, auto-switches to archive sources)
 │   ├── debian12_amd64.conf       # Debian 12 (DEB822-format sources)
 │   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + self-built OpenSSL + sqlite3)
 │   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault sources + self-built OpenSSL)
@@ -101,7 +102,7 @@ Artifact: `dist/mini_python-<platform>-py<version>.tar.gz`
 
 ## Artifact Size Reference
 
-Measured on 2026-08-26.
+Measured on 2026-09-04.
 
 **Empty base packs** (`--packages ""`, interpreter + full standard library, no third-party packages):
 
@@ -113,30 +114,28 @@ Measured on 2026-08-26.
 | Rocky 9 AMD64 | 3.11.16 | 13 MB |
 | Ubuntu 18 / 20 AMD64 | 3.11.16 | 12 MB |
 | Ubuntu 22 / 24 AMD64 | 3.11.16 | 13 MB |
+| Debian 11 AMD64 | 3.11.16 | 12 MB |
 | Debian 12 AMD64 | 3.11.16 | 13 MB |
 
-**Addon packages** (`numpy matplotlib pandas seaborn openpyxl`, 15-17 wheels):
+**Addon packs — scientific set** (`numpy matplotlib pandas seaborn openpyxl scipy scikit-learn`):
 
 | Platform | Size | Notes |
 |---|---|---|
-| CentOS 6 AMD64 | 40 MB | source-compiled pinned set + bundled libfreetype 2.10.4 |
-| CentOS 7 AMD64 | 53 MB | 17 wheels (extra pytz/tzdata) |
-| The other 7 platforms | 51 MB | all prebuilt wheels |
+| CentOS 6 | 80 MB | pinned versions compiled from source (scipy 1.11.3 / sklearn 1.3.2), ships OpenBLAS / libgfortran / freetype 2.10.4 |
+| CentOS 7 | 96 MB | manylinux2014-compatible versions (scipy 1.16.3 / sklearn 1.7.2 / numpy 2.2.6) |
+| The other 8 platforms | 93-94 MB | all latest prebuilt wheels (numpy 2.4.6 / scipy 1.17.1 / sklearn 1.9.0) |
 
-> Base pack + addon ≈ full-pack size (e.g. ubuntu22: 13+51=64 MB vs 69 MB full pack)
+**Addon packs — GUI set**:
 
-**Full packs** (preset packages `numpy matplotlib pandas seaborn openpyxl`, for comparison):
-
-| Platform | Python | Archive Size |
+| Platform | Package | Size |
 |---|---|---|
-| Ubuntu 18 / 20 / 22 AMD64 | 3.11.16 | 68-69 MB |
-| CentOS 7 AMD64 | 3.11.16 | 69 MB |
-| Rocky 8 / 9 AMD64 | 3.11.16 | 67-69 MB |
-| Debian 12 AMD64 | 3.11.16 | 69 MB |
+| ubuntu20/22/24, debian11/12, rocky8/9 | pyqt6 | 91-98 MB |
+| ubuntu18 | pyqt6 (self-built Qt 6.2.4 runtime) | 50 MB |
+| centos7 | pyqt5 | 72 MB |
+| centos6 | none (glibc 2.12 is below the Qt binary baseline) | — |
 
-Addon example: `addon-ubuntu18_amd64-scipy+scikit-learn` ≈ 59 MB (7 wheels)
-
-> Sizes vary with the number of preset packages; numpy/matplotlib/pandas only is about 50-55 MB
+> Base pack + scientific set ≈ 105-107 MB = a full offline scientific-computing environment;
+> the old 5-package addons (~51 MB) and full packs (~69 MB) are superseded by the dual-addon scheme
 
 ## Build Time Reference
 
@@ -166,14 +165,14 @@ On the build machine (if the build image is missing, it is automatically rebuilt
 ./build_addon.sh -p ubuntu18_amd64 "scikit-learn==1.3.2" xgboost
 ```
 
-Artifact: `dist/addon-ubuntu18_amd64-scikit-learn-<date>.tar.gz`
+Artifact: `dist/addon-ubuntu18_amd64-scikit-learn.tar.gz`
 (contains the wheels of the new packages **and all their dependencies**, fully offline installable on the target)
 
 On the target machine:
 
 ```bash
-tar xzf addon-ubuntu18_amd64-scikit-learn-20260728.tar.gz
-./addon-ubuntu18_amd64-scikit-learn-20260728/install_addon.sh /path/to/mini_python
+tar xzf addon-ubuntu18_amd64-scikit-learn.tar.gz
+./addon-ubuntu18_amd64-scikit-learn/install_addon.sh /path/to/mini_python
 
 # Verify
 /path/to/mini_python/python3 -c "import sklearn; print(sklearn.__version__)"
@@ -184,13 +183,26 @@ target environment, and refuses to install on a mismatch.
 
 ### Addons for GUI Packages (Qt etc.)
 
+The GUI set comes in two tiers depending on the target's glibc:
+
+- **glibc >= 2.28** (ubuntu20/22/24, debian11/12, rocky8/9): `pyqt6` (official wheels)
+- **ubuntu18 (glibc 2.27)**: `pyqt6` with a self-built runtime — qtbase 6.2.4 compiled from
+  source with PPA gcc-9, repackaged as a manylinux1-tagged PyQt6-Qt6 wheel plus the official
+  PyQt6 6.2.3 bindings (manylinux1 themselves); ~50MB artifact, offscreen rendering verified;
+  the build environment is preserved in the `u18_qt6_stage` image for reproducibility
+- **centos7 (glibc 2.17)**: `pyqt5`
+  (PyQt6-Qt6 wheels were only ever published as manylinux_2_28 — no version to fall back to)
+- **centos6 (glibc 2.12)**: no viable GUI pack — PyQt5 5.14 (manylinux1) installs, but importing
+  fails with `GLIBC_2.14 not found`; every modern Qt binary baseline is above glibc 2.12
+
 GUI package wheels depend on many system graphics libraries (glib/GL/X11/fontconfig etc.) that
 minimal target machines usually lack. Use `--system-pkgs` to ship them with the addon
 (collected automatically via ldd, installed into the environment's lib/ on the target):
 
 ```bash
-# Qt5 (PySide2 5.15) — works on ubuntu18 / centos7
-./build_addon.sh -p ubuntu18_amd64 --system-pkgs \
+# pyqt6 — apt platforms; note Ubuntu 24.04 t64 renames:
+#   libglib2.0-0 -> libglib2.0-0t64, libasound2 -> libasound2t64
+./build_addon.sh -p ubuntu22_amd64 --system-pkgs \
   "libglib2.0-0 libgl1 libegl1 libfontconfig1 libfreetype6 libxkbcommon0 \
    libxkbcommon-x11-0 libdbus-1-3 libx11-6 libx11-xcb1 libxcb1 libxext6 \
    libxrender1 libxi6 libsm6 libice6 libxcb-icccm4 libxcb-image0 \
@@ -198,19 +210,24 @@ minimal target machines usually lack. Use `--system-pkgs` to ship them with the 
    libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 \
    libxcb-xkb1 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libxtst6 \
    libxcursor1 libasound2 libnss3 libgssapi-krb5-2 \
-   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0" pyside2
+   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libopengl0 libxcb-cursor0" pyqt6
 
-# On centos7 use yum package names: "glib2 mesa-libGL mesa-libEGL fontconfig freetype
-#   libxkbcommon libxkbcommon-x11 dbus-libs libX11 libxcb libXext libXrender
-#   libXi libSM libICE xcb-util xcb-util-image xcb-util-keysyms
-#   xcb-util-renderutil xcb-util-wm libXcomposite libXdamage libXfixes
-#   libXrandr libXtst alsa-lib nss gstreamer1 gstreamer1-plugins-base"
+# pyqt6 — rocky8/9 use dnf names (note: rocky8 repos have NO xcb-util-cursor, drop it;
+#   rocky9 has it): "glib2 mesa-libGL mesa-libEGL fontconfig freetype libxkbcommon
+#   libxkbcommon-x11 dbus-libs libX11 libXext libXrender libXi libSM libICE
+#   xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
+#   libXcomposite libXdamage libXfixes libXrandr libXtst libXcursor alsa-lib
+#   nss gstreamer1 gstreamer1-plugins-base [rocky9 only: xcb-util-cursor]"
 
-# Qt6 (PySide6) — ubuntu20 and newer only (Qt6 binaries require glibc >= 2.28;
-# ubuntu18=2.27 / centos7=2.17 cannot run them — use Qt5 above on older platforms)
-./build_addon.sh -p ubuntu20_amd64 --system-pkgs "... (same as above, plus libopengl0 libxcb-cursor0)" pyside6
+# pyqt5 — old platforms: ubuntu18 uses the apt list, centos7 the yum names (neither has xcb-util-cursor):
+./build_addon.sh -p centos7_amd64 --system-pkgs \
+  "glib2 mesa-libGL mesa-libEGL fontconfig freetype libxkbcommon libxkbcommon-x11 \
+   dbus-libs libX11 libXext libXrender libXi libSM libICE xcb-util xcb-util-image \
+   xcb-util-keysyms xcb-util-renderutil xcb-util-wm libXcomposite libXdamage \
+   libXfixes libXrandr libXtst alsa-lib nss gstreamer1 gstreamer1-plugins-base" pyqt5
 ```
 
+PySide2/PySide6 work the same way (similar library lists; Qt6 likewise requires glibc >= 2.28).
 In display-less environments (servers/ssh), run Qt programs with `QT_QPA_PLATFORM=offscreen`;
 if the target has no fontconfig configuration you will see `Fontconfig error` warnings — they do
 not affect execution; install system fonts or set `FONTCONFIG_PATH` if text rendering is needed.

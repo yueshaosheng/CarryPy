@@ -6,7 +6,7 @@
 
 ![Release](https://img.shields.io/github/v/release/yueshaosheng/CarryPy)
 ![Downloads](https://img.shields.io/github/downloads/yueshaosheng/CarryPy/total)
-![Platforms](https://img.shields.io/badge/platforms-9%20Linux%20distros-blue?logo=linux&logoColor=white)
+![Platforms](https://img.shields.io/badge/platforms-10%20Linux%20distros-blue?logo=linux&logoColor=white)
 ![Docker](https://img.shields.io/badge/build%20with-Docker-2496ED?logo=docker&logoColor=white)
 ![Offline](https://img.shields.io/badge/offline--ready-brightgreen)
 ![No root](https://img.shields.io/badge/root-not%20required-success)
@@ -20,8 +20,10 @@
 从 [Releases](https://github.com/yueshaosheng/CarryPy/releases) 下载:
 
 - **基础包** `mini_python-<平台>-py<版本>.tar.gz` — Python 解释器 + 完整标准库
-- **增量包** `addon-<平台>-<包名>-<日期>.tar.gz` — 第三方包
-  (numpy / matplotlib / pandas / seaborn / openpyxl), 可选, 按需叠加
+- **科学计算增量包** `addon-<平台>-numpy+...+scikit-learn.tar.gz` —
+  numpy / matplotlib / pandas / seaborn / openpyxl / scipy / scikit-learn, 可选
+- **GUI 增量包** `addon-<平台>-pyqt6.tar.gz` — PyQt6 (ubuntu18 为自编 Qt 6.2 运行时版);
+  centos7 为 pyqt5 版; centos6 (glibc 2.12) 无可行 GUI 包, 可选
 
 拷到目标机 (完全离线也行):
 
@@ -32,8 +34,8 @@ tar xzf mini_python-ubuntu22_amd64-py3.11.16.tar.gz
 ./mini_python/python3 your_script.py      # 运行脚本
 ./mini_python/pip3 list                   # 查看已装包
 
-# 2. (可选) 安装增量包
-tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl-20260825.tar.gz
+# 2. (可选) 安装增量包 (以科学计算套为例)
+tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl+scipy+scikit-learn.tar.gz
 ./addon-*/install_addon.sh ./mini_python  # 离线安装 + 自动冒烟测试
 ```
 
@@ -67,7 +69,7 @@ cat config/ubuntu22_amd64.conf
 
 产物在 `dist/`, 部署方式同"方式一"。
 
-支持平台: Ubuntu 18/20/22/24、Debian 12、CentOS 6/7、Rocky 8/9
+支持平台: Ubuntu 18/20/22/24、Debian 11/12、CentOS 6/7、Rocky 8/9
 (每个平台一个配置文件, 见 `config/`; 扩展新平台见进阶指南)。
 
 ## 常见报错
