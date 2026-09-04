@@ -1,9 +1,9 @@
-[English](ADVANCED.md) | 中文 | [← 返回 README](../README_zh.md)
+[English](ADVANCED.md) | 中文 | [← 返回 README](../README.md)
 
 # 进阶指南
 
 CarryPy 的详细参考: 工作原理、构建选项、体积/时间数据、平台扩展与问题排查。
-日常使用见 [README](../README_zh.md)。
+日常使用见 [README](../README.md)。
 
 ## 目录
 

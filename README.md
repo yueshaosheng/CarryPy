@@ -1,90 +1,87 @@
-English | [中文](README_zh.md)
+中文 | [English](README_en.md)
 
 <img src="docs/assets/logo.png" alt="CarryPy logo" width="96">
 
-# CarryPy — Minimal Python Environment Packager
+# CarryPy — 跨平台最小化 Python 环境打包工具
 
 ![Release](https://img.shields.io/github/v/release/yueshaosheng/CarryPy)
 ![Downloads](https://img.shields.io/github/downloads/yueshaosheng/CarryPy/total)
-![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-9%20Linux%20distros-blue?logo=linux&logoColor=white)
 ![Docker](https://img.shields.io/badge/build%20with-Docker-2496ED?logo=docker&logoColor=white)
 ![Offline](https://img.shields.io/badge/offline--ready-brightgreen)
 ![No root](https://img.shields.io/badge/root-not%20required-success)
 ![License](https://img.shields.io/github/license/yueshaosheng/CarryPy)
 
-Builds **minimal-size, offline-deployable, install-free** Python runtimes for various Linux servers
-(e.g. Ubuntu 18.04 / CentOS 7 AMD64) using Docker, with support for adding python packages later.
+基于 Docker **为任意版本的 Linux 发行版构建任意版本的 Python** 运行环境——
+**最小体积、可离线部署、免安装**, 并支持后续**增量添加 Python 新包**。
 
-## Option 1: Use the Ready-made Artifacts (Recommended)
+## 方式一: 直接使用现成产物 (推荐)
 
-Download from [Releases](https://github.com/yueshaosheng/CarryPy/releases):
+从 [Releases](https://github.com/yueshaosheng/CarryPy/releases) 下载:
 
-- **Base pack** `mini_python-<platform>-py<version>.tar.gz` — Python interpreter + full standard library
-- **Addon pack** `addon-<platform>-<packages>-<date>.tar.gz` — third-party packages
-  (numpy / matplotlib / pandas / seaborn / openpyxl), optional, stack as needed
+- **基础包** `mini_python-<平台>-py<版本>.tar.gz` — Python 解释器 + 完整标准库
+- **增量包** `addon-<平台>-<包名>-<日期>.tar.gz` — 第三方包
+  (numpy / matplotlib / pandas / seaborn / openpyxl), 可选, 按需叠加
 
-Copy them to the target machine (fully offline is fine):
+拷到目标机 (完全离线也行):
 
 ```bash
-# 1. Extract the base pack — ready to use (no root, no installation)
+# 1. 解压基础包即用 (无需 root / 无需安装)
 tar xzf mini_python-ubuntu22_amd64-py3.11.16.tar.gz
-./mini_python/selfcheck.sh                # self-check
-./mini_python/python3 your_script.py      # run your script
-./mini_python/pip3 list                   # list installed packages
+./mini_python/selfcheck.sh                # 自检
+./mini_python/python3 your_script.py      # 运行脚本
+./mini_python/pip3 list                   # 查看已装包
 
-# 2. (Optional) Install an addon pack
+# 2. (可选) 安装增量包
 tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl-20260825.tar.gz
-./addon-*/install_addon.sh ./mini_python  # offline install + auto smoke test
+./addon-*/install_addon.sh ./mini_python  # 离线安装 + 自动冒烟测试
 ```
 
-The directory can be moved as a whole to any path at any time.
+目录可整体移动到任意路径。
 
-## Option 2: Build It Yourself (Docker required on the build machine)
+## 方式二: 自己构建 (打包机需安装 Docker)
 
-**First, check the platform config file** `config/<platform>.conf` (edit it if needed) —
-it defines the target platform, Python version and preset packages; the build command
-picks it up via `-p <platform>`:
+**先确认平台配置文件** `config/<平台>.conf` (按需修改)——它定义了目标平台、
+Python 版本和预装包, 构建命令通过 `-p <平台>` 读取它:
 
 ```bash
 cat config/ubuntu22_amd64.conf
-# BASE_IMAGE="ubuntu:22.04"       # Docker base image (must match the target machine)
-# DOCKER_PLATFORM="linux/amd64"   # Target architecture
-# PYTHON_VERSION="3.11"           # Python major.minor (latest patch auto-resolved)
-# DEFAULT_PACKAGES="numpy matplotlib pandas seaborn openpyxl"  # Preset packages for a full build
+# BASE_IMAGE="ubuntu:22.04"       # Docker 基础镜像 (需与目标机一致)
+# DOCKER_PLATFORM="linux/amd64"   # 目标架构
+# PYTHON_VERSION="3.11"           # Python 主.次版本 (自动解析最新 patch)
+# DEFAULT_PACKAGES="numpy matplotlib pandas seaborn openpyxl"  # 全量构建的预装包
 ```
 
-**Then build:**
+**然后构建:**
 
 ```bash
-# Build an empty base pack (~5-10 min first time)
+# 构建空包基础包 (首次约 5~10 分钟)
 ./build.sh -p ubuntu22_amd64 --packages ""
 
-# Build an addon pack (reuses the build image; rebuilds it automatically if missing)
+# 构建增量包 (复用构建镜像, 镜像缺失时自动补建)
 ./build_addon.sh -p ubuntu22_amd64 scipy scikit-learn
 
-# — or a full pack with preset packages in one shot (~20-40 min first time)
+# — 或一步到位: 带预装包的全量包 (首次约 20~40 分钟)
 ./build.sh -p ubuntu22_amd64
 ```
 
-Artifacts land in `dist/`; deploy them exactly as in Option 1.
+产物在 `dist/`, 部署方式同"方式一"。
 
-Supported platforms: Ubuntu 18/20/22/24, Debian 12, CentOS 6/7, Rocky 8/9
-(one config file each under `config/`; adding new platforms is covered in the advanced guide).
+支持平台: Ubuntu 18/20/22/24、Debian 12、CentOS 6/7、Rocky 8/9
+(每个平台一个配置文件, 见 `config/`; 扩展新平台见进阶指南)。
 
-## Common Errors
+## 常见报错
 
-| Error | Fix |
+| 报错 | 解决 |
 |---|---|
-| `错误: docker 守护进程未运行` | Start Docker Desktop first (macOS: `open -a Docker`), verify with `docker info` |
-| `错误: 未安装 docker` | Install Docker Desktop (or Colima / OrbStack / Rancher Desktop) |
+| `错误: docker 守护进程未运行` | 先启动 Docker Desktop (macOS: `open -a Docker`), 用 `docker info` 验证 |
+| `错误: 未安装 docker` | 安装 Docker Desktop (或 Colima / OrbStack / Rancher Desktop) |
 
-More errors and detailed troubleshooting: [Advanced Guide - Troubleshooting](docs/ADVANCED.md#troubleshooting)
+更多报错与详细排查: [进阶指南 - 常见报错](docs/ADVANCED_zh.md#常见报错)
 
-## Advanced Guide
+## 进阶指南
 
-How it works, directory layout, artifact size & build time reference, full build options,
-GUI (Qt) addon packages, adding new platforms, BASE_IMAGE rules, Docker image cleanup,
-and all the caveats:
+工作原理、目录结构、产物体积与构建时间参考、全量构建完整选项、GUI (Qt) 增量包、
+扩展新平台、BASE_IMAGE 写法、Docker 镜像清理、全部注意事项:
 
-**→ [docs/ADVANCED.md](docs/ADVANCED.md)**
+**→ [docs/ADVANCED_zh.md](docs/ADVANCED_zh.md)**

@@ -1,9 +1,9 @@
-English | [中文](ADVANCED_zh.md) | [← Back to README](../README.md)
+English | [中文](ADVANCED_zh.md) | [← Back to README](../README_en.md)
 
 # Advanced Guide
 
 Detailed reference for CarryPy: how it works, build options, size/time data,
-platform extension and troubleshooting. For day-to-day usage see the [README](../README.md).
+platform extension and troubleshooting. For day-to-day usage see the [README](../README_en.md).
 
 ## Table of Contents
 
