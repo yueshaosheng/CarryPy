@@ -17,6 +17,7 @@ adding new packages** afterwards.
 - [4. Adding a New Platform](#4-adding-a-new-platform)
 - [5. Cleaning Up Docker Images](#5-cleaning-up-docker-images)
 - [Notes](#notes)
+- [Troubleshooting](#troubleshooting)
 
 ## Quick Start
 
@@ -333,3 +334,26 @@ Notes:
   `scripts/build_python.sh`
 - **Addon mechanism**: the environment on the target keeps a full pip, so you can always manually
   `./pip3 install --no-index --find-links <wheel-dir> <package>` to install your own wheels
+
+## Troubleshooting
+
+### "错误: docker 守护进程未运行" (Error: Docker daemon is not running)
+
+Reported by the preflight check (`docker info`) of `build.sh` / `build_addon.sh`.
+
+**Cause**: the `docker` command is only a *client*. The actual engine (the `dockerd` daemon)
+runs inside the Linux virtual machine managed by Docker Desktop — containers need a Linux
+kernel, which macOS/Windows do not have natively. When Docker Desktop is not running, the VM
+and the daemon do not exist, so every docker command fails — even though `which docker` still
+finds the binary. Having the remote control does not mean the TV is on.
+
+**Fix**:
+
+- macOS: start Docker Desktop (or run `open -a Docker`), wait 10-30 s, then verify with `docker info`
+- Windows: start Docker Desktop (WSL2 backend); if you run a native dockerd inside WSL2 instead:
+  `sudo service docker start`
+- Prevent it: Docker Desktop → Settings → General → enable
+  "Start Docker Desktop when you sign in to your computer"
+
+Similarly, "错误: 未安装 docker" means the docker CLI itself is missing — install Docker Desktop
+(or an equivalent runtime such as Colima / OrbStack / Rancher Desktop).

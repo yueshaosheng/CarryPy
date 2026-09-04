@@ -16,6 +16,7 @@ Python 运行环境, 并支持后续**增量添加新包**。
 - [四、扩展新平台](#四扩展新平台)
 - [五、清理 Docker 镜像](#五清理-docker-镜像)
 - [注意事项](#注意事项)
+- [常见报错](#常见报错)
 
 ## 快速开始
 
@@ -323,3 +324,25 @@ docker system df                                   # 查看 Docker 磁盘占用�
   依赖自身 tests 目录, 可在 `scripts/build_python.sh` 中调整裁剪规则
 - **增量包机制**: 目标机上的环境保留了完整 pip, 所以任何时候也可以手动
   `./pip3 install --no-index --find-links <wheel目录> <包名>` 安装自备的 wheel
+
+## 常见报错
+
+### `错误: docker 守护进程未运行`
+
+`build.sh` / `build_addon.sh` 的前置检查(`docker info` 连通性)报此错。
+
+**原因**: `docker` 命令只是*客户端*; 真正干活的引擎(`dockerd` 守护进程)运行在
+Docker Desktop 管理的 Linux 虚拟机里——容器需要 Linux 内核, macOS/Windows 原生没有。
+Docker Desktop 没启动时, 虚拟机和守护进程都不存在, 所有 docker 命令都会失败——
+即使 `which docker` 仍能找到命令。就像手里有遥控器 ≠ 电视开着。
+
+**解决**:
+
+- macOS: 启动 Docker Desktop (或执行 `open -a Docker`), 等待 10~30 秒后用 `docker info` 验证
+- Windows: 启动 Docker Desktop (WSL2 后端); 若在 WSL2 内装的原生 dockerd:
+  `sudo service docker start`
+- 一劳永逸: Docker Desktop → Settings → General → 勾选
+  "Start Docker Desktop when you sign in to your computer" (登录时自动启动)
+
+类似地, `错误: 未安装 docker` 表示 docker 客户端本身没装——安装 Docker Desktop
+(或 Colima / OrbStack / Rancher Desktop 等等价运行时)。
