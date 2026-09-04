@@ -1,13 +1,24 @@
 [English](README.md) | 中文
 
-# mini_py_pack — 跨平台最小化 Python 环境打包工具
+<img src="docs/assets/logo.png" alt="CarryPy logo" width="96">
+
+# CarryPy — 跨平台最小化 Python 环境打包工具
+
+![Release](https://img.shields.io/github/v/release/yueshaosheng/CarryPy)
+![Downloads](https://img.shields.io/github/downloads/yueshaosheng/CarryPy/total)
+![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
+![Platforms](https://img.shields.io/badge/platforms-9%20Linux%20distros-blue?logo=linux&logoColor=white)
+![Docker](https://img.shields.io/badge/build%20with-Docker-2496ED?logo=docker&logoColor=white)
+![Offline](https://img.shields.io/badge/offline--ready-brightgreen)
+![No root](https://img.shields.io/badge/root-not%20required-success)
+![License](https://img.shields.io/github/license/yueshaosheng/CarryPy)
 
 基于 Docker 为各类版本的 Linux 服务器(如 Ubuntu 18.04 / CentOS 7 AMD64)构建**最小体积、可离线部署、
 免安装**的 Python 运行环境, 并支持后续**增量添加python新包**。
 
 ## 方式一: 直接使用现成产物 (推荐)
 
-从 [Releases](https://github.com/yueshaosheng/mini_py_pack/releases) 下载:
+从 [Releases](https://github.com/yueshaosheng/CarryPy/releases) 下载:
 
 - **基础包** `mini_python-<平台>-py<版本>.tar.gz` — Python 解释器 + 完整标准库
 - **增量包** `addon-<平台>-<包名>-<日期>.tar.gz` — 第三方包

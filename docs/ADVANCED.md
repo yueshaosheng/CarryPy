@@ -2,7 +2,7 @@ English | [中文](ADVANCED_zh.md) | [← Back to README](../README.md)
 
 # Advanced Guide
 
-Detailed reference for mini_py_pack: how it works, build options, size/time data,
+Detailed reference for CarryPy: how it works, build options, size/time data,
 platform extension and troubleshooting. For day-to-day usage see the [README](../README.md).
 
 ## Table of Contents

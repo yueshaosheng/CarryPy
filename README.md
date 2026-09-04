@@ -1,13 +1,24 @@
 English | [中文](README_zh.md)
 
-# mini_py_pack — Minimal Python Environment Packager
+<img src="docs/assets/logo.png" alt="CarryPy logo" width="96">
+
+# CarryPy — Minimal Python Environment Packager
+
+![Release](https://img.shields.io/github/v/release/yueshaosheng/CarryPy)
+![Downloads](https://img.shields.io/github/downloads/yueshaosheng/CarryPy/total)
+![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
+![Platforms](https://img.shields.io/badge/platforms-9%20Linux%20distros-blue?logo=linux&logoColor=white)
+![Docker](https://img.shields.io/badge/build%20with-Docker-2496ED?logo=docker&logoColor=white)
+![Offline](https://img.shields.io/badge/offline--ready-brightgreen)
+![No root](https://img.shields.io/badge/root-not%20required-success)
+![License](https://img.shields.io/github/license/yueshaosheng/CarryPy)
 
 Builds **minimal-size, offline-deployable, install-free** Python runtimes for various Linux servers
 (e.g. Ubuntu 18.04 / CentOS 7 AMD64) using Docker, with support for adding python packages later.
 
 ## Option 1: Use the Ready-made Artifacts (Recommended)
 
-Download from [Releases](https://github.com/yueshaosheng/mini_py_pack/releases):
+Download from [Releases](https://github.com/yueshaosheng/CarryPy/releases):
 
 - **Base pack** `mini_python-<platform>-py<version>.tar.gz` — Python interpreter + full standard library
 - **Addon pack** `addon-<platform>-<packages>-<date>.tar.gz` — third-party packages
