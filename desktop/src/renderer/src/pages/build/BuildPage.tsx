@@ -12,12 +12,13 @@ import {
   Tooltip,
   Typography
 } from '@arco-design/web-react';
-import { Flask, Pic, Thunderbolt } from '@icon-park/react';
+import { Flask, Pic, Thunderbolt, BookOne } from '@icon-park/react';
 import { BuildType, EnvKey, ENV_KEYS, PlatformInfo, Presets } from '@shared/types';
 import { splitPackages, validPackage, validPython } from '@shared/validation';
 import { useTasks } from '@renderer/state/TasksContext';
 import TaskCard from '@renderer/components/TaskCard';
 import QuickStart from '@renderer/components/QuickStart';
+import EmptyState from '@renderer/components/EmptyState';
 
 const ENV_PLACEHOLDER: Record<EnvKey, string> = {
   APT_MIRROR: '默认 mirrors.aliyun.com',
@@ -42,6 +43,14 @@ export default function BuildPage(): React.ReactNode {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [sysOpen, setSysOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(() => localStorage.getItem('carrypy.guide') !== '0');
+
+  const toggleGuide = (): void => {
+    setGuideOpen((prev) => {
+      localStorage.setItem('carrypy.guide', prev ? '0' : '1');
+      return !prev;
+    });
+  };
 
   useEffect(() => {
     void window.carrypy.listPlatforms().then((ps) => {
@@ -275,19 +284,37 @@ export default function BuildPage(): React.ReactNode {
         </Card>
 
         <div>
-          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10 }}>
-            最近任务
-          </Typography.Text>
-          {recent.length === 0 ? (
-            <QuickStart
-              onScience={() => {
-                setType('addon');
-                fillScience();
-              }}
-            />
-          ) : (
-            recent.map((t, i) => <TaskCard key={t.id} task={t} index={i} />)
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              最近任务
+            </Typography.Text>
+            <div style={{ flex: 1 }} />
+            <Button
+              size="mini"
+              type={guideOpen ? 'primary' : 'outline'}
+              icon={<BookOne />}
+              onClick={toggleGuide}
+            >
+              快速上手
+            </Button>
+          </div>
+          {guideOpen && (
+            <div style={{ marginBottom: recent.length > 0 ? 14 : 0 }}>
+              <QuickStart
+                onScience={() => {
+                  setType('addon');
+                  fillScience();
+                }}
+              />
+            </div>
           )}
+          {recent.length === 0
+            ? !guideOpen && (
+                <div className="cp-card">
+                  <EmptyState title="暂无构建任务" hint="在左侧选择平台与构建类型，点击「开始构建」" />
+                </div>
+              )
+            : recent.map((t, i) => <TaskCard key={t.id} task={t} index={i} />)}
         </div>
       </div>
     </div>
