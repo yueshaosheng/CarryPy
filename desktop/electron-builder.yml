@@ -47,6 +47,10 @@ linux:
         - x64
   category: Development
   maintainer: yueshaosheng
+deb:
+  artifactName: CarryPy-${version}-linux-x64.deb
+appImage:
+  artifactName: CarryPy-${version}-linux-x64.AppImage
 publish:
   - provider: github
     owner: yueshaosheng

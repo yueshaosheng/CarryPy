@@ -5,6 +5,12 @@
   "main": "./out/main/index.js",
   "author": "yueshaosheng",
   "license": "MIT",
+  "homepage": "https://github.com/yueshaosheng/CarryPy",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yueshaosheng/CarryPy.git"
+  },
+  "desktopName": "CarryPy",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
