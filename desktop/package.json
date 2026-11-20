@@ -1,6 +1,6 @@
 {
   "name": "carrypy-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CarryPy desktop GUI — build minimal Python environments for any Linux distro",
   "main": "./out/main/index.js",
   "author": "yueshaosheng",

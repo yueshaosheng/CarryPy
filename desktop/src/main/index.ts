@@ -1,6 +1,7 @@
 import { app, dialog, nativeTheme } from 'electron';
 import { CH } from '@shared/channels';
 import { applyUserDataOverride } from './runtime';
+import { augmentPath } from './env';
 import { initSettings } from './settings';
 import { emptyTrash } from './dist';
 import { registerIpc } from './ipc';
@@ -8,6 +9,7 @@ import { TaskManager } from './taskManager';
 import { createWindow, focusMainWindow, getMainWindow } from './window';
 
 applyUserDataOverride();
+augmentPath();
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

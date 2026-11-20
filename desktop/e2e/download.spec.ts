@@ -3,7 +3,7 @@ import { test, expect, navTo } from './fixtures';
 test('download page: offline bundled data + detection + actions', async ({ page, consoleErrors }) => {
   await navTo(page, '下载');
   await expect(page.locator('.dl-title')).toContainText('获取');
-  await expect(page.locator('.dl-version')).toHaveText('v1.0.0');
+  await expect(page.locator('.dl-version')).toHaveText('v1.0.1');
   await expect(page.locator('.dl-card')).toHaveCount(3);
   await expect(page.locator('.dl-card.detected .dl-card-head h3')).toHaveText('macOS');
   await expect(page.locator('.dl-main-btn')).toContainText('下载 macOS 版 (Apple Silicon)');

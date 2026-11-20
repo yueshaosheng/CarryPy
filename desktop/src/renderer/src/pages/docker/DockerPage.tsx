@@ -47,10 +47,17 @@ export default function DockerPage(): React.ReactNode {
           type="error"
           title="Docker 不可用"
           content={
-            <span>
-              {status.error ?? '未知错误'} — 请启动 Docker Desktop（macOS: <code>open -a Docker</code>），
-              用 <code>docker info</code> 验证后点击刷新。构建功能需要 Docker 守护进程运行。
-            </span>
+            status.error?.includes('未找到 docker 命令') ? (
+              <span>
+                {status.error} 已检查 PATH 与常见安装位置 (/usr/local/bin、/opt/homebrew/bin、~/.docker/bin、Docker.app 内置)。
+                安装后点击刷新即可，无需重启应用。
+              </span>
+            ) : (
+              <span>
+                {status.error ?? '未知错误'} — 请启动 Docker Desktop（macOS: <code>open -a Docker</code>），
+                用 <code>docker info</code> 验证后点击刷新。构建功能需要 Docker 守护进程运行。
+              </span>
+            )
           }
           style={{ marginBottom: 16 }}
         />
