@@ -12,7 +12,7 @@ export const BUNDLED_RELEASE: GuiRelease = {
     {
       name: 'CarryPy-1.0.0-mac-arm64.dmg',
       url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.0/CarryPy-1.0.0-mac-arm64.dmg',
-      size: 117982161,
+      size: 117982691,
       os: 'mac',
       arch: 'arm64',
       format: 'dmg'
@@ -20,7 +20,7 @@ export const BUNDLED_RELEASE: GuiRelease = {
     {
       name: 'CarryPy-1.0.0-mac-x64.dmg',
       url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.0/CarryPy-1.0.0-mac-x64.dmg',
-      size: 122748219,
+      size: 122763348,
       os: 'mac',
       arch: 'x64',
       format: 'dmg'
@@ -28,7 +28,7 @@ export const BUNDLED_RELEASE: GuiRelease = {
     {
       name: 'CarryPy-1.0.0-win-x64.exe',
       url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.0/CarryPy-1.0.0-win-x64.exe',
-      size: 105017061,
+      size: 105017817,
       os: 'win',
       arch: 'x64',
       format: 'exe'
@@ -36,7 +36,7 @@ export const BUNDLED_RELEASE: GuiRelease = {
     {
       name: 'CarryPy-1.0.0-linux-x64.deb',
       url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.0/CarryPy-1.0.0-linux-x64.deb',
-      size: 95997024,
+      size: 95990392,
       os: 'linux',
       arch: 'x64',
       format: 'deb'
@@ -44,7 +44,7 @@ export const BUNDLED_RELEASE: GuiRelease = {
     {
       name: 'CarryPy-1.0.0-linux-x64.AppImage',
       url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.0/CarryPy-1.0.0-linux-x64.AppImage',
-      size: 123522700,
+      size: 123522738,
       os: 'linux',
       arch: 'x64',
       format: 'AppImage'
