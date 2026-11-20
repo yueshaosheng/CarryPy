@@ -294,6 +294,9 @@ body {
   transform: translateY(-1px);
   box-shadow: var(--cp-shadow);
 }
+.task-card.s-queued {
+  border-left-color: rgb(var(--arcoblue-6));
+}
 .task-card.s-running,
 .task-card.s-cancelling {
   border-left-color: rgb(var(--warning-6));

@@ -1,5 +1,6 @@
 export type BuildType = 'base' | 'full' | 'addon';
 export type TaskStatus =
+  | 'queued'
   | 'running'
   | 'cancelling'
   | 'succeeded'
@@ -41,6 +42,7 @@ export interface Task {
   artifact: string | null;
   note: string | null;
   pid?: number;
+  batch_id?: string | null;
 }
 
 export interface PlatformInfo {
@@ -145,8 +147,22 @@ export interface TaskLogEvent {
 }
 
 export const RUNNING_STATUSES: TaskStatus[] = ['running', 'cancelling'];
+export const ACTIVE_STATUSES: TaskStatus[] = ['queued', 'running', 'cancelling'];
+
+export type BatchMode = 'base' | 'science' | 'current';
+
+export interface BatchRequest {
+  mode: BatchMode;
+  platforms: string[];
+  current?: BuildParams;
+}
+
+export type BatchResult =
+  | { ok: true; batch_id: string; tasks: Task[] }
+  | { ok: false; error: string };
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
+  queued: '排队中',
   running: '运行中',
   cancelling: '取消中',
   succeeded: '成功',

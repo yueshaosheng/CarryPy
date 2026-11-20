@@ -152,15 +152,15 @@
 'use strict';
 /* 离线兜底清单：发布新版后回填 (与最新 gui-v* release 同步) */
 const BUNDLED = {
-  tag: 'gui-v1.0.2', version: '1.0.2', published_at: '', source: 'bundled',
-  html_url: 'https://github.com/yueshaosheng/CarryPy/releases/tag/gui-v1.0.2',
+  tag: 'gui-v1.0.4', version: '1.0.4', published_at: '2026-11-20T07:19:06Z', source: 'bundled',
+  html_url: 'https://github.com/yueshaosheng/CarryPy/releases/tag/gui-v1.0.4',
   assets: [
-    { name: 'CarryPy-1.0.2-mac-arm64.dmg', os: 'mac', arch: 'arm64', format: 'dmg', size: 0 },
-    { name: 'CarryPy-1.0.2-mac-x64.dmg', os: 'mac', arch: 'x64', format: 'dmg', size: 0 },
-    { name: 'CarryPy-1.0.2-win-x64.exe', os: 'win', arch: 'x64', format: 'exe', size: 0 },
-    { name: 'CarryPy-1.0.2-linux-x64.deb', os: 'linux', arch: 'x64', format: 'deb', size: 0 },
-    { name: 'CarryPy-1.0.2-linux-x64.AppImage', os: 'linux', arch: 'x64', format: 'AppImage', size: 0 }
-  ].map(a => ({ ...a, url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.2/' + a.name }))
+    { name: 'CarryPy-1.0.4-mac-arm64.dmg', os: 'mac', arch: 'arm64', format: 'dmg', size: 117978354 },
+    { name: 'CarryPy-1.0.4-mac-x64.dmg', os: 'mac', arch: 'x64', format: 'dmg', size: 122759681 },
+    { name: 'CarryPy-1.0.4-win-x64.exe', os: 'win', arch: 'x64', format: 'exe', size: 105018520 },
+    { name: 'CarryPy-1.0.4-linux-x64.deb', os: 'linux', arch: 'x64', format: 'deb', size: 95990056 },
+    { name: 'CarryPy-1.0.4-linux-x64.AppImage', os: 'linux', arch: 'x64', format: 'AppImage', size: 123522700 }
+  ].map(a => ({ ...a, url: 'https://github.com/yueshaosheng/CarryPy/releases/download/gui-v1.0.4/' + a.name }))
 };
 const RELEASES_PAGE = 'https://github.com/yueshaosheng/CarryPy/releases';
 const ASSET_RE = /^CarryPy-([\d.]+)-(mac|win|linux)-(arm64|x64)\.(dmg|exe|deb|AppImage)$/;

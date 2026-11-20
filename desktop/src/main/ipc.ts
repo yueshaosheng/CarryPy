@@ -2,7 +2,7 @@ import { app, clipboard, dialog, ipcMain, shell } from 'electron';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import { CH } from '@shared/channels';
-import { AppInfo, BuildParams, Settings, ThemeMode } from '@shared/types';
+import { AppInfo, BatchRequest, BuildParams, Settings, ThemeMode } from '@shared/types';
 import { normalizeParams, validateBuildParams } from '@shared/validation';
 import * as dist from './dist';
 import * as dockerUtil from './dockerUtil';
@@ -105,6 +105,28 @@ export function registerIpc(tm: TaskManager): void {
     if (process.platform === 'win32' && !findBash())
       return { ok: false, error: '未检测到 Git Bash, 无法执行构建脚本 (请安装 Git for Windows)' };
     return manager.create(normalizeParams(p));
+  });
+  handle(CH.tasksCreateBatch, (_e, req) => {
+    const r = req as BatchRequest;
+    if (!r || !['base', 'science', 'current'].includes(r.mode))
+      return { ok: false, error: 'mode 必须是 base/science/current' };
+    if (!Array.isArray(r.platforms) || r.platforms.length === 0)
+      return { ok: false, error: '至少选择一个平台' };
+    for (const pf of r.platforms) {
+      if (typeof pf !== 'string' || !platformExists(getRootDir(), pf))
+        return { ok: false, error: `未知平台: ${String(pf)}` };
+    }
+    if (r.mode === 'current') {
+      const err = validateBuildParams(r.current);
+      if (err) return { ok: false, error: err };
+    }
+    if (process.platform === 'win32' && !findBash())
+      return { ok: false, error: '未检测到 Git Bash, 无法执行构建脚本 (请安装 Git for Windows)' };
+    return manager.createBatch(r);
+  });
+  handle(CH.tasksCancelBatch, (_e, batchId) => {
+    if (typeof batchId !== 'string') return { cancelled: 0 };
+    return manager.cancelBatch(batchId);
   });
   handle(CH.tasksCancel, (_e, id) => {
     if (typeof id !== 'string') return { result: 'not_found' };

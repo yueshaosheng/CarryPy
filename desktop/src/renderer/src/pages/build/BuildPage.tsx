@@ -12,13 +12,14 @@ import {
   Tooltip,
   Typography
 } from '@arco-design/web-react';
-import { Flask, Pic, Thunderbolt, BookOne, RankingList } from '@icon-park/react';
-import { BuildType, EnvKey, ENV_KEYS, PlatformInfo, Presets } from '@shared/types';
+import { Flask, Pic, Thunderbolt, BookOne, RankingList, AllApplication } from '@icon-park/react';
+import { BatchMode, BuildType, EnvKey, ENV_KEYS, PlatformInfo, Presets } from '@shared/types';
 import { splitPackages, validPackage, validPython } from '@shared/validation';
 import { useTasks } from '@renderer/state/TasksContext';
 import TaskCard from '@renderer/components/TaskCard';
 import QuickStart from '@renderer/components/QuickStart';
 import PackageRanking from '@renderer/components/PackageRanking';
+import BatchModal from '@renderer/components/BatchModal';
 import EmptyState from '@renderer/components/EmptyState';
 
 const ENV_PLACEHOLDER: Record<EnvKey, string> = {
@@ -46,6 +47,7 @@ export default function BuildPage(): React.ReactNode {
   const [sysOpen, setSysOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => localStorage.getItem('carrypy.guide') !== '0');
   const [rankOpen, setRankOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   const toggleGuide = (): void => {
     setGuideOpen((prev) => {
@@ -131,6 +133,32 @@ export default function BuildPage(): React.ReactNode {
       return [...list, name].join(' ');
     });
   }, [type]);
+
+  const startBatch = async (mode: BatchMode, platforms: string[]): Promise<void> => {
+    setBatchOpen(false);
+    const result = await window.carrypy.createBatch({
+      mode,
+      platforms,
+      current: mode === 'current'
+        ? {
+            type, platform,
+            packages: type === 'base' ? [] : splitPackages(packagesText),
+            python: python.trim(),
+            optimize: type !== 'addon' && optimize,
+            no_cache: type !== 'addon' && noCache,
+            system_pkgs: type === 'addon' ? splitPackages(systemText) : [],
+            env
+          }
+        : { type: 'base', platform: '', packages: [], python: python.trim(), optimize, no_cache: noCache, system_pkgs: [], env }
+    });
+    if (result.ok) {
+      Message.success(`已加入 ${result.tasks.length} 个平台构建队列`);
+      void refresh();
+      navigate('/tasks');
+    } else {
+      Message.error(result.error);
+    }
+  };
 
   const recent = tasks.slice(0, 6);
 
@@ -296,6 +324,15 @@ export default function BuildPage(): React.ReactNode {
             >
               {running ? '构建进行中…' : '开始构建'}
             </Button>
+            <Button
+              size="large"
+              long
+              icon={<AllApplication />}
+              disabled={!!running}
+              onClick={() => setBatchOpen(true)}
+            >
+              一键为所有平台构建
+            </Button>
             {formError && <Typography.Text type="error" style={{ fontSize: 12 }}>{formError}</Typography.Text>}
           </div>
         </Card>
@@ -335,6 +372,12 @@ export default function BuildPage(): React.ReactNode {
         </div>
       </div>
       <PackageRanking visible={rankOpen} onClose={() => setRankOpen(false)} onAdd={addPackage} />
+      <BatchModal
+        visible={batchOpen}
+        platforms={platforms}
+        onCancel={() => setBatchOpen(false)}
+        onOk={(mode, pfs) => void startBatch(mode, pfs)}
+      />
     </div>
   );
 }

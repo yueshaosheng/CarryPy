@@ -28,6 +28,7 @@ export default function TaskCard({ task, index = 0 }: { task: Task; index?: numb
           }}
         >
           {task.id} · {fmtTime(task.created_at)} · {fmtDur(task.created_at, task.finished_at)}
+          {task.batch_id ? ` · 批次${task.batch_id.slice(0, 4)}` : ''}
           {pkgs ? ` · ${pkgs}` : ''}
         </div>
       </div>

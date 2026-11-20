@@ -2,8 +2,9 @@ import { ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { StringDecoder } from 'string_decoder';
-import { BuildParams, CreateResult, LogChunk, Task, TaskStatus } from '@shared/types';
-import { RUNNING_STATUSES } from '@shared/types';
+import { BatchRequest, BatchResult, BuildParams, CreateResult, LogChunk, Task, TaskStatus } from '@shared/types';
+import { ACTIVE_STATUSES, RUNNING_STATUSES } from '@shared/types';
+import { normalizeParams, validateBuildParams } from '@shared/validation';
 import * as dockerUtil from './dockerUtil';
 import * as logHub from './logHub';
 import { imageTag, parseConf } from './platformConf';
@@ -83,7 +84,7 @@ export class TaskManager {
       return;
     }
     for (const t of data.tasks ?? []) {
-      if (RUNNING_STATUSES.includes(t.status)) {
+      if (ACTIVE_STATUSES.includes(t.status)) {
         t.status = 'interrupted';
         t.note = 'GUI 服务重启, docker 侧可能仍在构建, 请检查镜像/容器列表';
         t.finished_at = Date.now() / 1000;
@@ -135,6 +136,28 @@ export class TaskManager {
     return null;
   }
 
+  hasActive(): boolean {
+    for (const t of this.tasks.values()) {
+      if (ACTIVE_STATUSES.includes(t.status)) return true;
+    }
+    return false;
+  }
+
+  /** 队列推进: 无运行中任务时启动最早的排队任务。 */
+  private kick(): void {
+    if (this.runningTask()) return;
+    for (const id of this.order) {
+      const t = this.tasks.get(id);
+      if (t && t.status === 'queued') {
+        t.status = 'running';
+        this.persist();
+        logHub.taskUpdated(t);
+        void this.run(t);
+        return;
+      }
+    }
+  }
+
   readLog(id: string, offset: number): LogChunk | null {
     const t = this.tasks.get(id);
     if (!t) return null;
@@ -164,7 +187,8 @@ export class TaskManager {
 
   create(params: BuildParams): CreateResult {
     const busy = this.runningTask();
-    if (busy) return { ok: false, error: '已有构建进行中', running_task: busy };
+    if (busy || this.hasActive())
+      return { ok: false, error: '已有构建进行中', running_task: busy ?? undefined };
     const root = getRootDir();
     const id = Math.random().toString(16).slice(2, 14).padEnd(12, '0');
     const argv = buildArgv(root, params);
@@ -310,11 +334,87 @@ export class TaskManager {
     t.finished_at = Date.now() / 1000;
     this.persist();
     logHub.taskUpdated(t);
+    this.kick();
+  }
+
+  createBatch(req: BatchRequest): BatchResult {
+    if (this.hasActive()) return { ok: false, error: '已有构建或排队任务进行中' };
+    const root = getRootDir();
+    const batchId = Math.random().toString(16).slice(2, 10);
+    const created: Task[] = [];
+    for (const platform of req.platforms) {
+      let params: BuildParams;
+      if (req.mode === 'base') {
+        params = normalizeParams({
+          type: 'base', platform, packages: [], python: req.current?.python ?? '',
+          optimize: !!req.current?.optimize, no_cache: !!req.current?.no_cache,
+          system_pkgs: [], env: req.current?.env ?? {}
+        });
+      } else if (req.mode === 'science') {
+        const conf = parseConf(path.join(root, 'config', `${platform}.conf`));
+        params = normalizeParams({
+          type: 'addon', platform,
+          packages: (conf.DEFAULT_PACKAGES ?? '').split(/\s+/).filter(Boolean),
+          python: '', optimize: false, no_cache: false, system_pkgs: [], env: {}
+        });
+      } else {
+        if (!req.current) return { ok: false, error: '缺少当前表单配置' };
+        params = normalizeParams({ ...req.current, platform });
+      }
+      const err = validateBuildParams(params);
+      if (err) return { ok: false, error: `${platform}: ${err}` };
+      const argv = buildArgv(root, params);
+      const conf = parseConf(path.join(root, 'config', `${platform}.conf`));
+      const pyver = params.python || conf.PYTHON_VERSION || '';
+      const id = Math.random().toString(16).slice(2, 14).padEnd(12, '0');
+      const task: Task = {
+        id, type: params.type, platform, params, argv,
+        image: imageTag(platform, pyver),
+        status: 'queued', created_at: Date.now() / 1000,
+        finished_at: null, exit_code: null,
+        expected_artifact: params.type === 'addon' ? addonArtifactName(platform, params.packages) : null,
+        artifact: null, note: null, batch_id: batchId
+      };
+      this.tasks.set(id, task);
+      this.order.push(id);
+      created.push({ ...task });
+    }
+    this.prune();
+    this.persist();
+    for (const t of created) logHub.taskUpdated(this.tasks.get(t.id) as Task);
+    this.kick();
+    return { ok: true, batch_id: batchId, tasks: created };
+  }
+
+  cancelBatch(batchId: string): { cancelled: number } {
+    let n = 0;
+    for (const t of this.tasks.values()) {
+      if (t.batch_id !== batchId) continue;
+      if (t.status === 'queued') {
+        t.status = 'cancelled';
+        t.finished_at = Date.now() / 1000;
+        t.note = '批次已取消';
+        n++;
+        this.persist();
+        logHub.taskUpdated(t);
+      } else if (t.status === 'running') {
+        this.cancel(t.id);
+        n++;
+      }
+    }
+    return { cancelled: n };
   }
 
   cancel(id: string): { result: string } {
     const t = this.tasks.get(id);
     if (!t) return { result: 'not_found' };
+    if (t.status === 'queued') {
+      t.status = 'cancelled';
+      t.finished_at = Date.now() / 1000;
+      this.persist();
+      logHub.taskUpdated(t);
+      return { result: 'ok' };
+    }
     if (t.status !== 'running') return { result: `already_${t.status}` };
     t.status = 'cancelling';
     this.cancelFlags.set(id, true);

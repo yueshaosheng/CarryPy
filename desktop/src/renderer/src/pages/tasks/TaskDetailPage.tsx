@@ -46,8 +46,15 @@ export default function TaskDetailPage(): React.ReactNode {
   }
 
   const running = RUNNING_STATUSES.includes(task.status);
+  const cancellable = running || task.status === 'queued';
 
   const cancel = async (): Promise<void> => {
+    if (task.batch_id) {
+      const r = await window.carrypy.cancelBatch(task.batch_id);
+      Message.info(`已取消批次 (${r.cancelled} 个任务)`);
+      void refresh();
+      return;
+    }
     const r = await window.carrypy.cancelTask(task.id);
     if (r.result === 'ok') Message.info('已发送取消');
     else Message.warning(`无法取消: ${r.result}`);
@@ -73,14 +80,18 @@ export default function TaskDetailPage(): React.ReactNode {
           {task.exit_code !== null ? ` · exit ${task.exit_code}` : ''}
         </span>
         <div style={{ flex: 1 }} />
-        {running && (
+        {cancellable && (
           <Popconfirm
-            title="确认取消构建？"
-            content="将终止进程组并清理残留容器；若升级为硬杀，BuildKit 可能仍在后台跑完当前层以缓存。"
+            title={task.batch_id ? '取消整个批次？' : '确认取消构建？'}
+            content={task.batch_id
+              ? '将取消该批次所有排队与运行中的任务；运行中的任务会终止进程组并清理残留容器。'
+              : '将终止进程组并清理残留容器；若升级为硬杀，BuildKit 可能仍在后台跑完当前层以缓存。'}
             onOk={() => void cancel()}
             okButtonProps={{ status: 'danger' }}
           >
-            <Button size="small" status="danger" icon={<Forbid />}>取消构建</Button>
+            <Button size="small" status="danger" icon={<Forbid />}>
+              {task.batch_id ? '取消批次' : '取消构建'}
+            </Button>
           </Popconfirm>
         )}
         <Button size="small" icon={<Download />} onClick={() => void exportLog()}>导出日志</Button>

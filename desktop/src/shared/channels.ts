@@ -9,6 +9,8 @@ export const CH = {
   tasksList: 'tasks:list',
   tasksGet: 'tasks:get',
   tasksCreate: 'tasks:create',
+  tasksCreateBatch: 'tasks:createBatch',
+  tasksCancelBatch: 'tasks:cancelBatch',
   tasksCancel: 'tasks:cancel',
   tasksReadLog: 'tasks:readLog',
   tasksExportLog: 'tasks:exportLog',

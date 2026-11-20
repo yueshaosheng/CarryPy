@@ -15,7 +15,7 @@ export const test = base.extend<Fixtures>({
   userData: async ({}, use) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'carrypy-e2e-'));
     await use(dir);
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
   },
   app: async ({ userData }, use) => {
     const app = await electron.launch({
@@ -27,7 +27,8 @@ export const test = base.extend<Fixtures>({
       }
     });
     await use(app);
-    await app.close();
+    // 强制结束: 避免运行中构建触发退出确认对话框阻塞 teardown
+    app.process().kill('SIGKILL');
   },
   page: async ({ app }, use) => {
     const page = await app.firstWindow();

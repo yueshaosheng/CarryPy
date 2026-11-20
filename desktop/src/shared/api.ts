@@ -1,4 +1,5 @@
 import { PackageRanking } from './pypiRanking';
+import { BatchRequest, BatchResult } from './types';
 import {
   AppInfo,
   CreateResult,
@@ -26,6 +27,8 @@ export interface CarryPyApi {
   listTasks(limit?: number): Promise<Task[]>;
   getTask(id: string): Promise<(Task & { log_size: number }) | null>;
   createTask(params: BuildParams): Promise<CreateResult>;
+  createBatch(req: BatchRequest): Promise<BatchResult>;
+  cancelBatch(batchId: string): Promise<{ cancelled: number }>;
   cancelTask(id: string): Promise<{ result: string }>;
   readLog(id: string, offset: number): Promise<LogChunk | null>;
   exportLog(id: string): Promise<{ saved: boolean; path?: string }>;

@@ -2,6 +2,7 @@ import { Tag } from '@arco-design/web-react';
 import { TaskStatus, STATUS_LABEL, RUNNING_STATUSES } from '@shared/types';
 
 const COLOR: Record<TaskStatus, string> = {
+  queued: 'arcoblue',
   running: 'orangered',
   cancelling: 'orangered',
   succeeded: 'green',
