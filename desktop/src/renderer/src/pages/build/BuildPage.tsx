@@ -17,7 +17,7 @@ import { BuildType, EnvKey, ENV_KEYS, PlatformInfo, Presets } from '@shared/type
 import { splitPackages, validPackage, validPython } from '@shared/validation';
 import { useTasks } from '@renderer/state/TasksContext';
 import TaskCard from '@renderer/components/TaskCard';
-import EmptyState from '@renderer/components/EmptyState';
+import QuickStart from '@renderer/components/QuickStart';
 
 const ENV_PLACEHOLDER: Record<EnvKey, string> = {
   APT_MIRROR: '默认 mirrors.aliyun.com',
@@ -279,9 +279,12 @@ export default function BuildPage(): React.ReactNode {
             最近任务
           </Typography.Text>
           {recent.length === 0 ? (
-            <Card className="cp-card">
-              <EmptyState title="暂无构建任务" hint="在左侧选择平台与构建类型，点击「开始构建」" />
-            </Card>
+            <QuickStart
+              onScience={() => {
+                setType('addon');
+                fillScience();
+              }}
+            />
           ) : (
             recent.map((t, i) => <TaskCard key={t.id} task={t} index={i} />)
           )}

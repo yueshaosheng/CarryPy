@@ -1,8 +1,10 @@
 import { test, expect, navTo } from './fixtures';
 
 test('navigation: all pages render with key elements', async ({ page, consoleErrors }) => {
-  // Build page: 10 platforms
+  // Build page: 10 platforms + quick-start guide on first view
   await expect(page.locator('.page-head h1')).toHaveText('构建');
+  await expect(page.locator('.page-scroll')).toContainText('快速上手');
+  await expect(page.locator('.page-scroll')).toContainText('三步得到可离线部署的 Python 环境');
   await page.locator('.arco-select-view').first().click();
   const options = page.locator('.arco-select-option');
   await expect(options).toHaveCount(10);
@@ -63,7 +65,7 @@ test('presets: platform-specific GUI branches', async ({ page }) => {
   await page.locator('.arco-select-option', { hasText: 'centos6_amd64' }).click();
   await expect(page.locator('button', { hasText: 'GUI 套' })).toBeDisabled();
   await expect(page.locator('.page-scroll')).toContainText('glibc 2.12 无可行 GUI 包');
-  await page.locator('button', { hasText: '科学计算套' }).click();
+  await page.getByRole('button', { name: '科学计算套', exact: true }).click();
   await expect(page.locator('textarea').first()).toHaveValue(/numpy==1\.26\.4/);
   await expect(page.locator('textarea').first()).toHaveValue(/h5py==3\.10\.0/);
 });

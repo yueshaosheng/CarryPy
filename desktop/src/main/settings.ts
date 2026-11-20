@@ -1,7 +1,8 @@
-import { app, dialog, nativeTheme } from 'electron';
+import { dialog, nativeTheme } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Settings, ThemeMode } from '@shared/types';
+import { APP_VERSION } from '@shared/version';
 import { defaultDistDir, ensureDistLink, getRoot, isFrozen, stateDir } from './runtime';
 
 interface StoredSettings {
@@ -53,7 +54,7 @@ export function getSettings(): Settings {
     theme: stored.theme ?? 'light',
     editable: isFrozen(),
     frozen: isFrozen(),
-    version: app.getVersion(),
+    version: APP_VERSION,
     root,
     state_dir: stateDir()
   };
