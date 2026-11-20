@@ -26,6 +26,11 @@ export MANPATH="${MANPATH:-}"
 export INFOPATH="${INFOPATH:-}"
 [ -f /opt/rh/devtoolset-9/enable ] && source /opt/rh/devtoolset-9/enable
 
+# CentOS 6: h5py 等 sdist 编译时指向镜像内源码安装的 HDF5
+[ -d /opt/hdf5 ] && export HDF5_DIR=/opt/hdf5
+# CentOS 6: numpy/scipy 的 meson 构建通过 pkg-config 找 OpenBLAS (BLAS/LAPACK)
+[ -d /opt/openblas ] && export PKG_CONFIG_PATH="/opt/openblas/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+
 # ---------------- 检查是否已有预编译 Python (python-build-standalone 等) ----------------
 if [ -x "$PREFIX/bin/$PY_BIN" ]; then
     log "检测到预编译 Python, 跳过源码编译"

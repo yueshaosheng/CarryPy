@@ -62,7 +62,7 @@ CarryPy 的详细参考: 工作原理、构建选项、体积/时间数据、平
 │   ├── ubuntu24_amd64.conf       # Ubuntu 24.04 LTS
 │   ├── debian11_amd64.conf       # Debian 11 (LTS 已结束, 自动切 archive 源)
 │   ├── debian12_amd64.conf       # Debian 12 (DEB822 格式源)
-│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + 自编译 OpenSSL + sqlite3)
+│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + 自编译 OpenSSL + sqlite3 + HDF5)
 │   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault 源 + 自编译 OpenSSL)
 │   ├── rocky8_amd64.conf         # Rocky Linux 8
 │   └── rocky9_amd64.conf         # Rocky Linux 9
@@ -102,7 +102,7 @@ PIP_INDEX_URL=https://pypi.org/simple \
 
 ## 产物体积参考
 
-实测于 2026-09-04。
+实测于 2026-11-19 (科学计算套含 h5py; 基础包体积沿用 2026-09-04 实测)。
 
 **空包基础包**(`--packages ""`, 解释器 + 完整标准库, 不含第三方包):
 
@@ -117,13 +117,13 @@ PIP_INDEX_URL=https://pypi.org/simple \
 | Debian 11 AMD64 | 3.11.16 | 12 MB |
 | Debian 12 AMD64 | 3.11.16 | 13 MB |
 
-**addon 增量包 — 科学计算套**(`numpy matplotlib pandas seaborn openpyxl scipy scikit-learn`):
+**addon 增量包 — 科学计算套**(`numpy matplotlib pandas seaborn openpyxl scipy scikit-learn h5py`):
 
 | 平台 | 体积 | 备注 |
 |---|---|---|
-| CentOS 6 | 80 MB | 固定版本组合源码编译 (scipy 1.11.3 / sklearn 1.3.2), 随包携带 OpenBLAS / libgfortran / freetype 2.10.4 |
-| CentOS 7 | 96 MB | manylinux2014 兼容版 (scipy 1.16.3 / sklearn 1.7.2 / numpy 2.2.6) |
-| 其余 8 个平台 | 93~94 MB | 全部最新预编译 wheel (numpy 2.4.6 / scipy 1.17.1 / sklearn 1.9.0) |
+| CentOS 6 | 91 MB | 固定版本组合源码编译 (scipy 1.11.3 / sklearn 1.3.2 / h5py 3.10.0), 随包携带 OpenBLAS / libgfortran / HDF5 1.10.11 |
+| CentOS 7 | 100 MB | manylinux2014 兼容版 (scipy 1.16.3 / sklearn 1.7.2 / numpy 2.2.6 / h5py 3.14.0) |
+| 其余 8 个平台 | 99~100 MB | 全部最新预编译 wheel (numpy 2.4.6 / scipy 1.17.1 / sklearn 1.9.1 / h5py 3.16.0, ubuntu18 为 h5py 3.15.1) |
 
 **addon 增量包 — GUI 套**:
 
@@ -134,7 +134,7 @@ PIP_INDEX_URL=https://pypi.org/simple \
 | centos7 | pyqt5 | 72 MB |
 | centos6 | 无 (glibc 2.12 低于 Qt 二进制基线) | — |
 
-> 基础包 + 科学计算套 ≈ 105~107 MB, 即为一个全功能离线科学计算环境;
+> 基础包 + 科学计算套 ≈ 112~113 MB, 即为一个全功能离线科学计算环境;
 > 旧版 5 包 addon (约 51 MB) 与全量包 (约 69 MB) 已由双 addon 体系取代
 
 ## 构建时间参考
@@ -292,7 +292,7 @@ docker system df                                   # 查看 Docker 磁盘占用�
   归档源(`APT_MIRROR` 非空时用 `<镜像>/centos-vault`); 系统 OpenSSL 1.0.2 低于
   Python 3.10 要求的 1.1.1, 构建镜像会自动源码编译一份, `libssl.so.1.1` 随包携带,
   目标机无需任何额外操作
-- **CentOS 6 特殊性**: devtoolset-9 (GCC 9.1) + 自编译 OpenSSL 1.1.1w + sqlite3 3.46;
+- **CentOS 6 特殊性**: devtoolset-9 (GCC 9.1 + gfortran) + 自编译 OpenSSL 1.1.1w + sqlite3 3.46 + OpenBLAS 0.3.26 + HDF5 1.10.11 (供 numpy/scipy/h5py 源码编译);
   最新第三方包在该平台无法编译, `config/centos6_amd64.conf` 已固定实测可用版本组合
   (numpy==1.26.4 / matplotlib==3.7.5 / pandas==2.2.1 / seaborn==0.13.2);
   全量包模式编译 pillow 会因系统 freetype 2.3 过旧失败, 请用"空包基础 + 增量包"双阶段模式

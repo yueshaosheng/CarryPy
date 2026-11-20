@@ -62,7 +62,7 @@ Build host (any platform, Docker required)
 │   ├── ubuntu24_amd64.conf       # Ubuntu 24.04 LTS
 │   ├── debian11_amd64.conf       # Debian 11 (LTS ended, auto-switches to archive sources)
 │   ├── debian12_amd64.conf       # Debian 12 (DEB822-format sources)
-│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + self-built OpenSSL + sqlite3)
+│   ├── centos6_amd64.conf        # CentOS 6.10 (EOL, SCL + self-built OpenSSL + sqlite3 + HDF5)
 │   ├── centos7_amd64.conf        # CentOS 7.9 (EOL, vault sources + self-built OpenSSL)
 │   ├── rocky8_amd64.conf         # Rocky Linux 8
 │   └── rocky9_amd64.conf         # Rocky Linux 9
@@ -102,7 +102,7 @@ Artifact: `dist/mini_python-<platform>-py<version>.tar.gz`
 
 ## Artifact Size Reference
 
-Measured on 2026-09-04.
+Measured on 2026-11-19 (scientific set now includes h5py; base-pack sizes carried over from 2026-09-04).
 
 **Empty base packs** (`--packages ""`, interpreter + full standard library, no third-party packages):
 
@@ -117,13 +117,13 @@ Measured on 2026-09-04.
 | Debian 11 AMD64 | 3.11.16 | 12 MB |
 | Debian 12 AMD64 | 3.11.16 | 13 MB |
 
-**Addon packs — scientific set** (`numpy matplotlib pandas seaborn openpyxl scipy scikit-learn`):
+**Addon packs — scientific set** (`numpy matplotlib pandas seaborn openpyxl scipy scikit-learn h5py`):
 
 | Platform | Size | Notes |
 |---|---|---|
-| CentOS 6 | 80 MB | pinned versions compiled from source (scipy 1.11.3 / sklearn 1.3.2), ships OpenBLAS / libgfortran / freetype 2.10.4 |
-| CentOS 7 | 96 MB | manylinux2014-compatible versions (scipy 1.16.3 / sklearn 1.7.2 / numpy 2.2.6) |
-| The other 8 platforms | 93-94 MB | all latest prebuilt wheels (numpy 2.4.6 / scipy 1.17.1 / sklearn 1.9.0) |
+| CentOS 6 | 91 MB | pinned versions compiled from source (scipy 1.11.3 / sklearn 1.3.2 / h5py 3.10.0), ships OpenBLAS / libgfortran / HDF5 1.10.11 |
+| CentOS 7 | 100 MB | manylinux2014-compatible versions (scipy 1.16.3 / sklearn 1.7.2 / numpy 2.2.6 / h5py 3.14.0) |
+| The other 8 platforms | 99-100 MB | all latest prebuilt wheels (numpy 2.4.6 / scipy 1.17.1 / sklearn 1.9.1 / h5py 3.16.0; ubuntu18 gets h5py 3.15.1) |
 
 **Addon packs — GUI set**:
 
@@ -134,7 +134,7 @@ Measured on 2026-09-04.
 | centos7 | pyqt5 | 72 MB |
 | centos6 | none (glibc 2.12 is below the Qt binary baseline) | — |
 
-> Base pack + scientific set ≈ 105-107 MB = a full offline scientific-computing environment;
+> Base pack + scientific set ≈ 112-113 MB = a full offline scientific-computing environment;
 > the old 5-package addons (~51 MB) and full packs (~69 MB) are superseded by the dual-addon scheme
 
 ## Build Time Reference
@@ -300,7 +300,7 @@ Notes:
   `vault.centos.org` archive (`<mirror>/centos-vault` when `APT_MIRROR` is set). Its system
   OpenSSL 1.0.2 is below the 1.1.1 required by Python 3.10+, so the build image compiles one from
   source; `libssl.so.1.1` is shipped in the pack — no extra steps on the target machine
-- **CentOS 6 specifics**: GCC 9.1 (devtoolset-9) + self-built OpenSSL 1.1.1w + sqlite3 3.46.
+- **CentOS 6 specifics**: GCC 9.1 + gfortran (devtoolset-9) + self-built OpenSSL 1.1.1w + sqlite3 3.46 + OpenBLAS 0.3.26 + HDF5 1.10.11 (for building numpy/scipy/h5py from source).
   Latest third-party versions cannot be built there; `config/centos6_amd64.conf` pins a verified
   combination (numpy==1.26.4, matplotlib==3.7.5, pandas==2.2.1, seaborn==0.13.2). Full-pack mode
   fails on pillow (system freetype 2.3 is too old) — use the two-stage mode (empty base + addon)

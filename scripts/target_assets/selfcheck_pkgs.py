@@ -122,6 +122,20 @@ def test_openpyxl(tmp):
     assert rows[1] == ("alpha", 1), f"数据不对: {rows[1]}"
 
 
+def test_h5py(tmp):
+    import h5py
+    import numpy as np
+    out = os.path.join(tmp, "test.h5")
+    data = np.arange(100, dtype="float64").reshape(10, 10)
+    with h5py.File(out, "w") as f:
+        f.create_dataset("data", data=data, compression="gzip")
+        f.attrs["kind"] = "smoke"
+    _file_ok(out)
+    with h5py.File(out, "r") as f:
+        assert f.attrs["kind"] == "smoke", "hdf5 属性读回不对"
+        assert np.array_equal(f["data"][...], data), "hdf5 数据集写读回环不一致"
+
+
 def test_sklearn(tmp):
     import numpy as np
     from sklearn.linear_model import LogisticRegression
@@ -202,6 +216,7 @@ TESTS = {
     "pillow": ("PIL", test_pillow),
     "openpyxl": ("openpyxl", test_openpyxl),
     "scikit-learn": ("sklearn", test_sklearn),
+    "h5py": ("h5py", test_h5py),
     "torch": ("torch", test_torch),
     "tensorflow": ("tensorflow", test_tensorflow),
     "transformers": ("transformers", test_transformers),

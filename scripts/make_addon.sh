@@ -25,6 +25,11 @@ export MANPATH="${MANPATH:-}"
 export INFOPATH="${INFOPATH:-}"
 [ -f /opt/rh/devtoolset-9/enable ] && source /opt/rh/devtoolset-9/enable
 
+# CentOS 6: h5py 等 sdist 编译时指向镜像内源码安装的 HDF5
+[ -d /opt/hdf5 ] && export HDF5_DIR=/opt/hdf5
+# CentOS 6: numpy/scipy 的 meson 构建通过 pkg-config 找 OpenBLAS (BLAS/LAPACK)
+[ -d /opt/openblas ] && export PKG_CONFIG_PATH="/opt/openblas/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+
 NAME="${ADDON_NAME:-addon-${PLATFORM_NAME}-$(date +%Y%m%d_%H%M%S)}"
 WORK="/tmp/${NAME}"
 mkdir -p "$WORK/wheels"
@@ -41,6 +46,16 @@ if [ -n "${ADDON_SYSTEM_PKGS:-}" ]; then
     else
         echo "错误: 容器内没有 apt-get/yum, 无法安装系统包"; exit 1
     fi
+fi
+
+# 钉版本平台的构建隔离约束 (pip >= 24.2): sdist 的构建依赖默认拉最新版,
+# 如 scikit-learn 1.3.2 会拉最新 scipy -> numpy 2.x, 在老 GCC 上编译失败;
+# 把顶层钉版本传导进构建隔离环境。numpy 例外只限 <2:
+# h5py 的 oldest-supported-numpy 构建时要求更老的 numpy 精确版本
+if printf '%s\n' $ADDON_PACKAGES | grep -q '=='; then
+    printf '%s\n' $ADDON_PACKAGES | grep '==' | sed 's/^numpy==.*/numpy<2/' \
+        > "$WORK/build-constraints.txt"
+    export PIP_BUILD_CONSTRAINT="$WORK/build-constraints.txt"
 fi
 
 echo "==> 为 Python ${PYTHON_VERSION} / ${PLATFORM_NAME} 构建 wheel: ${ADDON_PACKAGES}"

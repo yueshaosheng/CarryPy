@@ -20,8 +20,8 @@
 从 [Releases](https://github.com/yueshaosheng/CarryPy/releases) 下载:
 
 - **基础包** `mini_python-<平台>-py<版本>.tar.gz` — Python 解释器 + 完整标准库
-- **科学计算增量包** `addon-<平台>-numpy+...+scikit-learn.tar.gz` —
-  numpy / matplotlib / pandas / seaborn / openpyxl / scipy / scikit-learn, 可选
+- **科学计算增量包** `addon-<平台>-numpy+...+h5py.tar.gz` —
+  numpy / matplotlib / pandas / seaborn / openpyxl / scipy / scikit-learn / h5py, 可选
 - **GUI 增量包** `addon-<平台>-pyqt6.tar.gz` — PyQt6 (ubuntu18 为自编 Qt 6.2 运行时版);
   centos7 为 pyqt5 版; centos6 (glibc 2.12) 无可行 GUI 包, 可选
 
@@ -35,7 +35,7 @@ tar xzf mini_python-ubuntu22_amd64-py3.11.16.tar.gz
 ./mini_python/pip3 list                   # 查看已装包
 
 # 2. (可选) 安装增量包 (以科学计算套为例)
-tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl+scipy+scikit-learn.tar.gz
+tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl+scipy+scikit-learn+h5py.tar.gz
 ./addon-*/install_addon.sh ./mini_python  # 离线安装 + 自动冒烟测试
 ```
 

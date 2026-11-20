@@ -192,6 +192,48 @@ COPY scripts/build_python.sh /build/build_python.sh
 RUN bash /build/build_python.sh \
         "${PYVER_FULL}" "${PY_PACKAGES}" "${ENABLE_OPTIMIZATIONS}" "${PYTHON_MIRROR}"
 
+# CentOS 6: h5py 在 glibc 2.12 上无可用 wheel, 源码编译 HDF5 供其 sdist 编译使用
+# (其他平台 h5py 用官方 wheel, 内嵌 libhdf5, 此层为空操作);
+# 放在 Python 编译层之后: 新增此层不触发 Python 重编译
+ARG HDF5_VERSION=1.10.11
+RUN set -e; \
+    if [ ! -f /etc/os-release ] && grep -q 'release 6' /etc/redhat-release; then \
+        echo "==> CentOS 6: 源码编译 HDF5 ${HDF5_VERSION} (h5py 编译依赖) ..."; \
+        source /opt/rh/devtoolset-9/enable; \
+        cd /tmp; \
+        wget -q "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-${HDF5_VERSION}/src/hdf5-${HDF5_VERSION}.tar.gz"; \
+        tar xzf "hdf5-${HDF5_VERSION}.tar.gz"; \
+        cd "hdf5-${HDF5_VERSION}"; \
+        ./configure --prefix=/opt/hdf5 --enable-shared --disable-static > /tmp/hdf5.log 2>&1 \
+            || { tail -n 50 /tmp/hdf5.log; exit 1; }; \
+        make -j"$(nproc)" >> /tmp/hdf5.log 2>&1 \
+            || { tail -n 50 /tmp/hdf5.log; exit 1; }; \
+        make install >> /tmp/hdf5.log 2>&1; \
+        echo /opt/hdf5/lib > /etc/ld.so.conf.d/hdf5.conf && ldconfig; \
+        cd / && rm -rf /tmp/hdf5-*; \
+    fi
+
+# CentOS 6: numpy/scipy 源码编译需要 Fortran 工具链与 BLAS/LAPACK:
+# SCL gfortran + 源码编译 OpenBLAS (内嵌 LAPACK, 系统 lapack 3.2 过旧);
+# libjpeg-turbo 供 pillow 源码编译; matplotlib 构建时自动下载本地 freetype
+ARG OPENBLAS_VERSION=0.3.26
+RUN set -e; \
+    if [ ! -f /etc/os-release ] && grep -q 'release 6' /etc/redhat-release; then \
+        echo "==> CentOS 6: 安装 gfortran, 源码编译 OpenBLAS ${OPENBLAS_VERSION} (numpy/scipy 编译依赖) ..."; \
+        yum install -y devtoolset-9-gcc-gfortran libjpeg-turbo-devel; \
+        yum clean all; \
+        source /opt/rh/devtoolset-9/enable; \
+        cd /tmp; \
+        wget -q "https://github.com/OpenMathLib/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}.tar.gz"; \
+        tar xzf "OpenBLAS-${OPENBLAS_VERSION}.tar.gz"; \
+        cd "OpenBLAS-${OPENBLAS_VERSION}"; \
+        make -j"$(nproc)" DYNAMIC_ARCH=1 NO_STATIC=1 > /tmp/openblas.log 2>&1 \
+            || { tail -n 50 /tmp/openblas.log; exit 1; }; \
+        make PREFIX=/opt/openblas install >> /tmp/openblas.log 2>&1; \
+        echo /opt/openblas/lib > /etc/ld.so.conf.d/openblas.conf && ldconfig; \
+        cd / && rm -rf /tmp/OpenBLAS-*; \
+    fi
+
 # 打包层: 裁剪副本 -> 放入目标机入口脚本 -> 自检 -> tar 到 /out (1~2 分钟)
 # 注意: /opt/mini_python 保留完整环境(含头文件), 供后续增量包编译 sdist 使用;
 #       真正发布的是裁剪后的 /opt/dist/mini_python

@@ -21,8 +21,8 @@ Python packages** afterwards.
 Download from [Releases](https://github.com/yueshaosheng/CarryPy/releases):
 
 - **Base pack** `mini_python-<platform>-py<version>.tar.gz` — Python interpreter + full standard library
-- **Scientific addon pack** `addon-<platform>-numpy+...+scikit-learn.tar.gz` —
-  numpy / matplotlib / pandas / seaborn / openpyxl / scipy / scikit-learn, optional
+- **Scientific addon pack** `addon-<platform>-numpy+...+h5py.tar.gz` —
+  numpy / matplotlib / pandas / seaborn / openpyxl / scipy / scikit-learn / h5py, optional
 - **GUI addon pack** `addon-<platform>-pyqt6.tar.gz` — PyQt6 (ubuntu18 ships a self-built
   Qt 6.2 runtime); centos7 gets the pyqt5 variant; centos6 (glibc 2.12) has no viable GUI pack, optional
 
@@ -36,7 +36,7 @@ tar xzf mini_python-ubuntu22_amd64-py3.11.16.tar.gz
 ./mini_python/pip3 list                   # list installed packages
 
 # 2. (Optional) Install an addon pack (scientific set shown)
-tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl+scipy+scikit-learn.tar.gz
+tar xzf addon-ubuntu22_amd64-numpy+matplotlib+pandas+seaborn+openpyxl+scipy+scikit-learn+h5py.tar.gz
 ./addon-*/install_addon.sh ./mini_python  # offline install + auto smoke test
 ```
 
