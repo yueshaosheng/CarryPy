@@ -6,7 +6,6 @@ import { AppInfo, BuildParams, Settings, ThemeMode } from '@shared/types';
 import { normalizeParams, validateBuildParams } from '@shared/validation';
 import * as dist from './dist';
 import * as dockerUtil from './dockerUtil';
-import { getRelease } from './releases';
 import { getSettings, chooseDistDir, setTheme, getRootDir } from './settings';
 import { listPlatforms, parseConf, platformExists } from './platformConf';
 import { presetsFor } from './presets';
@@ -153,6 +152,4 @@ export function registerIpc(tm: TaskManager): void {
       throw new Error('主题非法');
     return setTheme(theme as ThemeMode);
   });
-
-  handle(CH.releasesGet, (_e, force) => getRelease(force === true));
 }

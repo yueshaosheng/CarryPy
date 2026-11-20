@@ -5,7 +5,6 @@ import {
   Code,
   ListView,
   FolderOpen,
-  Download,
   SettingTwo,
   Ship,
   Sun,
@@ -21,7 +20,6 @@ const NAV = [
   { path: '/tasks', label: '任务', icon: ListView },
   { path: '/artifacts', label: '产物', icon: FolderOpen },
   { path: '/docker', label: 'Docker', icon: Ship },
-  { path: '/download', label: '下载', icon: Download },
   { path: '/settings', label: '设置', icon: SettingTwo }
 ];
 
@@ -62,7 +60,6 @@ export default function AppShell({ children }: { children: ReactNode }): ReactNo
         <div className="brand-row">
           <Logo />
           <span className="brand-serif">CarryPy</span>
-          <span className="brand-tag">GUI</span>
         </div>
         {NAV.map((item) => {
           const Icon = item.icon;

@@ -72,25 +72,22 @@ cat config/ubuntu22_amd64.conf
 支持平台: Ubuntu 18/20/22/24、Debian 11/12、CentOS 6/7、Rocky 8/9
 (每个平台一个配置文件, 见 `config/`; 扩展新平台见进阶指南)。
 
-## 桌面 GUI (Electron)
+## 桌面 GUI
 
-`desktop/` 提供基于 **Electron + React + TypeScript + UnoCSS + Arco Design** 的桌面应用
-(架构对齐 [AionUi](https://github.com/iOfficeAI/AionUi)): 平台/预设选择、一键构建、
-实时日志流、任务取消与历史恢复、产物管理(含删除撤销)、Docker 状态、明暗主题,
-以及 AionUi 风格的**应用下载页**(自动检测本机系统/架构, 含 Rosetta 修正)。
+`desktop/` 提供 Electron + React + TypeScript 桌面应用: 平台/预设选择、一键构建、
+实时日志、任务取消与历史恢复、产物管理(删除可撤销)、Docker 状态、明暗主题。
 
 ```bash
 cd desktop
 npm install
-npm run dev          # 开发态 (ROOT=仓库根, 产物写入仓库 dist/)
-npm run dist:mac     # 打包 macOS arm64 dmg → desktop/release/
-npm run test:e2e     # Playwright 驱动真实 Electron 窗口的端到端测试
+npm run dev          # 开发态 (产物写入仓库 dist/)
+npm run dist:mac     # 打包 macOS dmg → desktop/release/
+npm run test:e2e     # Playwright 端到端测试
 ```
 
-安装包经 GitHub Actions 矩阵构建 (macOS arm64/x64 dmg、Windows x64 exe、Linux x64 deb/AppImage),
-推送 `gui-v*` tag 自动发布到 Releases; 应用内下载页拉取最新 `gui-v*` release 资产, 离线时内置清单兜底。
-打包态首启将构建脚本解包到 `~/Library/Application Support/CarryPy/app-<版本>/`,
-产物默认输出到 `~/CarryPy-dist` (设置中可改)。macOS 首次打开若被 Gatekeeper 拦截:
+**[应用下载页](docs/download.html)** — 浏览器打开即可, 自动检测系统/架构,
+提供 macOS / Windows / Linux 安装包 (GitHub Actions 矩阵构建, 推送 `gui-v*` tag 自动发布到 Releases)。
+打包态产物默认输出到 `~/CarryPy-dist` (设置中可改)。macOS 首次打开若被 Gatekeeper 拦截:
 右键 → 打开, 或 `xattr -dr com.apple.quarantine /Applications/CarryPy.app`。
 Windows 执行构建需安装 Git for Windows (Git Bash)。
 

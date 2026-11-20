@@ -4,7 +4,6 @@ import {
   DistFile,
   DockerImage,
   DockerStatus,
-  GuiRelease,
   LogChunk,
   PlatformInfo,
   Presets,
@@ -37,7 +36,6 @@ export interface CarryPyApi {
   getSettings(): Promise<Settings>;
   chooseDistDir(): Promise<Settings | null>;
   setTheme(theme: ThemeMode): Promise<Settings>;
-  getRelease(force?: boolean): Promise<GuiRelease>;
   onTaskUpdated(cb: (task: Task) => void): () => void;
   onTaskLog(cb: (event: TaskLogEvent) => void): () => void;
   onThemeChanged(cb: (dark: boolean) => void): () => void;

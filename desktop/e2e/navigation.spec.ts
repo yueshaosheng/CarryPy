@@ -23,15 +23,6 @@ test('navigation: all pages render with key elements', async ({ page, consoleErr
   await navTo(page, 'Docker');
   await expect(page.locator('.page-head h1')).toHaveText('Docker');
 
-  // Download page: brand + three cards + detected badge (mac arm64 host)
-  await navTo(page, '下载');
-  await expect(page.locator('.dl-title')).toContainText('获取');
-  await expect(page.locator('.dl-card')).toHaveCount(3);
-  await expect(page.locator('.dl-card.detected')).toHaveCount(1);
-  await expect(page.locator('.dl-detected-badge')).toHaveText('已检测');
-  await expect(page.locator('.dl-main-btn')).toContainText('macOS');
-  await expect(page.locator('.dl-main-btn')).toContainText('Apple Silicon');
-
   // Settings page
   await navTo(page, '设置');
   await expect(page.locator('.page-head h1')).toHaveText('设置');

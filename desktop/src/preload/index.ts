@@ -25,7 +25,6 @@ const api: CarryPyApi = {
   getSettings: () => ipcRenderer.invoke(CH.settingsGet),
   chooseDistDir: () => ipcRenderer.invoke(CH.settingsChooseDistDir),
   setTheme: (theme) => ipcRenderer.invoke(CH.settingsSetTheme, theme),
-  getRelease: (force) => ipcRenderer.invoke(CH.releasesGet, force),
   onTaskUpdated: (cb) => {
     const listener = (_e: unknown, task: Task): void => cb(task);
     ipcRenderer.on(CH.evTaskUpdated, listener);

@@ -6,8 +6,8 @@ test('theme: dark mode applies and persists', async ({ page, consoleErrors }) =>
   await expect(page.locator('body')).toHaveAttribute('arco-theme', 'dark');
   await page.screenshot({ path: 'e2e/.tmp/settings-dark.png', animations: 'disabled' });
 
-  await navTo(page, '下载');
-  await page.screenshot({ path: 'e2e/.tmp/download-dark.png', fullPage: true, animations: 'disabled' });
+  await navTo(page, '产物');
+  await page.screenshot({ path: 'e2e/.tmp/artifacts-dark.png', fullPage: true, animations: 'disabled' });
 
   await navTo(page, '设置');
   await page.locator('.arco-radio-button', { hasText: '浅色' }).click();

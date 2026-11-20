@@ -20,7 +20,6 @@ export const CH = {
   settingsGet: 'settings:get',
   settingsChooseDistDir: 'settings:chooseDistDir',
   settingsSetTheme: 'settings:setTheme',
-  releasesGet: 'releases:get',
   evTaskUpdated: 'task:updated',
   evTaskLog: 'task:log',
   evThemeChanged: 'app:themeChanged'
