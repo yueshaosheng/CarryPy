@@ -74,6 +74,31 @@ Artifacts land in `dist/`; deploy them exactly as in Option 1.
 Supported platforms: Ubuntu 18/20/22/24, Debian 11/12, CentOS 6/7, Rocky 8/9
 (one config file each under `config/`; adding new platforms is covered in the advanced guide).
 
+## Desktop GUI (Electron)
+
+`desktop/` ships a desktop app built with **Electron + React + TypeScript + UnoCSS + Arco Design**
+(architecture aligned with [AionUi](https://github.com/iOfficeAI/AionUi)): platform/preset picker,
+one-click builds, live log streaming, task cancellation & history recovery, artifact management
+(with undo after delete), Docker status, light/dark themes, and an AionUi-style **download page**
+(auto-detects host OS/arch, Rosetta-corrected).
+
+```bash
+cd desktop
+npm install
+npm run dev          # dev mode (ROOT=repo root, artifacts go to repo dist/)
+npm run dist:mac     # package macOS arm64 dmg → desktop/release/
+npm run test:e2e     # Playwright end-to-end tests driving a real Electron window
+```
+
+Installers are built by a GitHub Actions matrix (macOS arm64/x64 dmg, Windows x64 exe,
+Linux x64 deb/AppImage); pushing a `gui-v*` tag publishes them to Releases. The in-app download
+page fetches the latest `gui-v*` release assets, with a bundled manifest as offline fallback.
+On first launch the packaged app extracts build scripts to
+`~/Library/Application Support/CarryPy/app-<version>/`; artifacts default to `~/CarryPy-dist`
+(changeable in Settings). If macOS Gatekeeper blocks the first launch: right-click → Open, or
+`xattr -dr com.apple.quarantine /Applications/CarryPy.app`. Building on Windows requires
+Git for Windows (Git Bash).
+
 ## Common Errors
 
 | Error | Fix |

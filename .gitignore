@@ -12,3 +12,12 @@ Thumbs.db
 # Python 缓存
 __pycache__/
 *.py[cod]
+
+# Electron GUI
+desktop/node_modules/
+desktop/out/
+desktop/release/
+desktop/e2e/.tmp/
+playwright-report/
+test-results/
+desktop/*.tsbuildinfo
