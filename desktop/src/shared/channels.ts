@@ -17,6 +17,7 @@ export const CH = {
   distReveal: 'dist:reveal',
   distDelete: 'dist:delete',
   distRestore: 'dist:restore',
+  pypiRanking: 'pypi:ranking',
   settingsGet: 'settings:get',
   settingsChooseDistDir: 'settings:chooseDistDir',
   settingsSetTheme: 'settings:setTheme',

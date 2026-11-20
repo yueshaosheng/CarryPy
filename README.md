@@ -77,6 +77,8 @@ cat config/ubuntu22_amd64.conf
 `desktop/` 提供 Electron + React + TypeScript 桌面应用: 平台/预设选择、一键构建、
 实时日志、任务取消与历史恢复、产物管理(删除可撤销)、Docker 状态、明暗主题。
 
+![CarryPy GUI 主页面](docs/assets/gui-main.png)
+
 ```bash
 cd desktop
 npm install

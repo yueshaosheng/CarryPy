@@ -1,3 +1,4 @@
+import { PackageRanking } from './pypiRanking';
 import {
   AppInfo,
   CreateResult,
@@ -33,6 +34,7 @@ export interface CarryPyApi {
   revealDist(name: string): Promise<void>;
   deleteDist(name: string): Promise<{ deleted: string }>;
   restoreDist(name: string): Promise<{ restored: string }>;
+  getPypiRanking(force?: boolean): Promise<PackageRanking>;
   getSettings(): Promise<Settings>;
   chooseDistDir(): Promise<Settings | null>;
   setTheme(theme: ThemeMode): Promise<Settings>;

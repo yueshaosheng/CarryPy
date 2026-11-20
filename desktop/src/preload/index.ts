@@ -22,6 +22,7 @@ const api: CarryPyApi = {
   revealDist: (name) => ipcRenderer.invoke(CH.distReveal, name),
   deleteDist: (name) => ipcRenderer.invoke(CH.distDelete, name),
   restoreDist: (name) => ipcRenderer.invoke(CH.distRestore, name),
+  getPypiRanking: (force) => ipcRenderer.invoke(CH.pypiRanking, force),
   getSettings: () => ipcRenderer.invoke(CH.settingsGet),
   chooseDistDir: () => ipcRenderer.invoke(CH.settingsChooseDistDir),
   setTheme: (theme) => ipcRenderer.invoke(CH.settingsSetTheme, theme),

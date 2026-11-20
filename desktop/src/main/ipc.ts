@@ -9,6 +9,7 @@ import * as dockerUtil from './dockerUtil';
 import { getSettings, chooseDistDir, setTheme, getRootDir } from './settings';
 import { listPlatforms, parseConf, platformExists } from './platformConf';
 import { presetsFor } from './presets';
+import { getRanking } from './pypiStats';
 import { TaskManager, findBash } from './taskManager';
 import path from 'path';
 
@@ -144,6 +145,8 @@ export function registerIpc(tm: TaskManager): void {
     if (typeof name !== 'string') throw new Error('文件名非法');
     return dist.restoreDist(name);
   });
+
+  handle(CH.pypiRanking, (_e, force) => getRanking(force === true));
 
   handle(CH.settingsGet, (): Settings => getSettings());
   handle(CH.settingsChooseDistDir, () => chooseDistDir());

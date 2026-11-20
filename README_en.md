@@ -80,6 +80,8 @@ Supported platforms: Ubuntu 18/20/22/24, Debian 11/12, CentOS 6/7, Rocky 8/9
 one-click builds, live log streaming, task cancellation & history recovery, artifact
 management (undo after delete), Docker status, light/dark themes.
 
+![CarryPy GUI main page](docs/assets/gui-main.png)
+
 ```bash
 cd desktop
 npm install

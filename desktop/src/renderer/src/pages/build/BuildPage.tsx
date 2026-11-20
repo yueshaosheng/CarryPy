@@ -12,12 +12,13 @@ import {
   Tooltip,
   Typography
 } from '@arco-design/web-react';
-import { Flask, Pic, Thunderbolt, BookOne } from '@icon-park/react';
+import { Flask, Pic, Thunderbolt, BookOne, RankingList } from '@icon-park/react';
 import { BuildType, EnvKey, ENV_KEYS, PlatformInfo, Presets } from '@shared/types';
 import { splitPackages, validPackage, validPython } from '@shared/validation';
 import { useTasks } from '@renderer/state/TasksContext';
 import TaskCard from '@renderer/components/TaskCard';
 import QuickStart from '@renderer/components/QuickStart';
+import PackageRanking from '@renderer/components/PackageRanking';
 import EmptyState from '@renderer/components/EmptyState';
 
 const ENV_PLACEHOLDER: Record<EnvKey, string> = {
@@ -44,6 +45,7 @@ export default function BuildPage(): React.ReactNode {
   const [formError, setFormError] = useState('');
   const [sysOpen, setSysOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => localStorage.getItem('carrypy.guide') !== '0');
+  const [rankOpen, setRankOpen] = useState(false);
 
   const toggleGuide = (): void => {
     setGuideOpen((prev) => {
@@ -121,6 +123,15 @@ export default function BuildPage(): React.ReactNode {
     }
   };
 
+  const addPackage = useCallback((name: string) => {
+    if (type === 'base') setType('addon');
+    setPackagesText((prev) => {
+      const list = splitPackages(prev);
+      if (list.some((p) => p.replace(/[=<>!~].*/, '') === name)) return prev;
+      return [...list, name].join(' ');
+    });
+  }, [type]);
+
   const recent = tasks.slice(0, 6);
 
   return (
@@ -153,7 +164,7 @@ export default function BuildPage(): React.ReactNode {
               </Select>
               {current && (
                 <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
-                  {current.base_image} · {current.docker_platform} · Python {current.python_version} · 默认 {current.default_packages.length} 包
+                  {current.base_image} · {current.docker_platform} · Python {current.python_version}
                 </Typography.Text>
               )}
             </div>
@@ -173,6 +184,7 @@ export default function BuildPage(): React.ReactNode {
               <>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <Button size="small" icon={<Flask />} onClick={fillScience}>科学计算套</Button>
+                  <Button size="small" icon={<RankingList />} onClick={() => setRankOpen(true)}>热门包榜</Button>
                   <Tooltip content={presets?.gui.available ? '填入 GUI 包与系统库清单' : presets?.gui.reason ?? ''}>
                     <span>
                       <Button size="small" icon={<Pic />} disabled={!presets?.gui.available} onClick={fillGui}>
@@ -211,9 +223,14 @@ export default function BuildPage(): React.ReactNode {
                 bordered={false}
                 style={{ background: 'var(--color-fill-1)', borderRadius: 8 }}
                 activeKey={sysOpen ? ['sys'] : []}
-                onChange={(keys) => setSysOpen(Array.isArray(keys) ? keys.includes('sys') : keys === 'sys')}
+                onChange={(_key, keys) => setSysOpen(keys.includes('sys'))}
               >
-                <Collapse.Item header="系统包 (--system-pkgs, GUI 类 wheel 需要)" name="sys">
+                <Collapse.Item header="系统包 (--system-pkgs, 可选)" name="sys">
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+                    仅 GUI 类 wheel (PyQt 等) 需要：把目标机可能缺失的系统图形库 (glib/GL/X11 等)
+                    随增量包携带，安装时自动落到环境 lib/。科学计算套与普通包无需填写，留空即可；
+                    GUI 套预设会自动填入对应平台的清单。
+                  </Typography.Paragraph>
                   <Input.TextArea
                     value={systemText}
                     onChange={setSystemText}
@@ -317,6 +334,7 @@ export default function BuildPage(): React.ReactNode {
             : recent.map((t, i) => <TaskCard key={t.id} task={t} index={i} />)}
         </div>
       </div>
+      <PackageRanking visible={rankOpen} onClose={() => setRankOpen(false)} onAdd={addPackage} />
     </div>
   );
 }
